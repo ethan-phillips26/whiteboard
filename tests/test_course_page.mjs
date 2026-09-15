@@ -12,11 +12,11 @@ import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FRONTEND = join(HERE, "..", "src", "blackboard_web", "frontend");
+const FRONTEND = join(HERE, "..");
 const SRC = join(FRONTEND, "src");
 
-// The frontend has its own node_modules; this file lives outside it, so every
-// dependency is resolved from the frontend's package rather than from here.
+// Dependencies are resolved from the app's own package.json, so this works
+// wherever it is run from.
 const req = createRequire(join(FRONTEND, "package.json"));
 const { build } = req("esbuild");
 const { renderToStaticMarkup } = req("react-dom/server");
@@ -71,21 +71,16 @@ const COURSE = { course_id: "_11_1", label: "CSCI 450", title: "Cloud Computing"
 
 const STANDING = {
   course_id: "_11_1", accessible: true, current_pct: 88.4, current_letter: "B",
-  projected_pct: 94.1, weighted_by: "syllabus", grouped_by: "inferred",
-  late_policy: "Ten percent a day, three days maximum.",
-  syllabus: { filename: "Fall_2026_Syllabus.docx" },
-  weight_status: "ok", weights_edited: false,
+  projected_pct: 94.1, weighted_by: "custom", weights_edited: true,
   categories: [{
-    category_id: "syl:Quizzes", title: "Quizzes", weight: 0.25,
+    category_id: "_cat1", title: "Quizzes", weight: 0.25,
     effective_weight: 0.25, pct: 88,
     columns: [
       { column_id: "_c1_1", name: "Quiz 2", possible: 21, score: 19, graded: true },
       { column_id: "_c2_1", name: "Quiz 3", possible: 21, score: null, graded: false },
     ],
   }],
-  empty_components: [], unclassified: [], unmapped: [], suspect: [],
   available_categories: [{ id: "_cat1", title: "Quizzes" }],
-  components: [{ syllabus_label: "Quizzes", weight_pct: 25 }],
 };
 
 const ASSIGNMENTS = [
@@ -135,8 +130,8 @@ check("the grades tab shows the breakdown", grades.includes("Breakdown"));
 check("and the calculator", grades.includes("What do I need?"));
 check("and every gradebook row",
       grades.includes("Quiz 2") && grades.includes("19 / 21"));
-check("and the syllabus it was weighted by",
-      grades.includes("Fall_2026_Syllabus.docx"));
+check("and says how it is weighted",
+      grades.includes("weighted by your percentages"));
 
 const anns = page("announcements");
 check("the announcements tab lists this course only",
@@ -199,7 +194,9 @@ check("a graded item shows the score Blackboard has",
 check("an item's handouts are named before anything is downloaded",
       tree.includes("study-guide.pdf") && tree.includes("20 KB"));
 check("and each one is a control you can take the file from, not a label",
-      /<button[^>]*class="mat-file"[^>]*title="Download study-guide\.pdf"/.test(tree),
+      // A PDF opens in the page's viewer, so its title offers reading, not saving.
+      /<button[^>]*class="mat-file"[^>]*title="(Read study-guide\.pdf here|Download study-guide\.pdf)"/
+        .test(tree),
       tree.slice(tree.indexOf("mat-files") - 40));
 check("an external link points at its target",
       tree.includes('href="https://example.edu"'));

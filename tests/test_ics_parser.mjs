@@ -1,18 +1,16 @@
 /**
  * The calendar grid renders the generated .ics, so the writer and the reader are
- * one contract. This test builds a feed with the real Python generator and then
- * parses it with the real browser parser — if either side drifts, it fails here.
+ * one contract. This test builds a feed with the real generator and then parses
+ * it with the real parser — if either side drifts, it fails here.
  *
  *   node tests/test_ics_parser.mjs
  */
-import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const { parseICS } = await import(
-  join(root, "src/blackboard_web/frontend/src/lib/ics.js")
-);
+const { parseICS } = await import(join(root, "src/lib/ics.js"));
+const { build } = await import(join(root, "src/browser/ics.js"));
 
 const fails = [];
 function check(label, cond, detail = "") {
@@ -37,21 +35,7 @@ const ITEMS = [
 
 console.log("\n[ics parser] against the real generator");
 
-let feed;
-try {
-  feed = execFileSync(
-    "uv",
-    ["run", "python", "-c",
-     `import json,sys; sys.path.insert(0,"src");
-from blackboard_web import ics
-sys.stdout.write(ics.build(json.loads(sys.argv[1]), calname="Ethan's, coursework"))`,
-     JSON.stringify(ITEMS)],
-    { cwd: root, encoding: "utf8" }
-  );
-} catch (e) {
-  console.error("  SKIP  could not run the Python generator:", e.message);
-  process.exit(0);
-}
+const feed = build(ITEMS, { calname: "Ethan's, coursework" });
 
 const { calendarName, events } = parseICS(feed);
 

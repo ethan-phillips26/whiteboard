@@ -1,18 +1,21 @@
 {
-  "name": "whiteboard-desktop",
+  "name": "whiteboard",
   "private": true,
-  "version": "0.1.0",
-  "description": "Desktop shell for the Whiteboard dashboard.",
+  "type": "module",
   "scripts": {
-    "dev": "npm --prefix src/blackboard_web/frontend run dev",
-    "server": "uv run blackboard-web --port 8765",
-    "sidecar": "uv run python scripts/build_sidecar.py",
-    "app": "npm run sidecar && cargo build --release --manifest-path src-tauri/Cargo.toml",
-    "bundle": "npm run sidecar && tauri build",
-    "shell": "tauri dev",
-    "tauri": "tauri"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node tests/test_ics_parser.mjs && node tests/test_course_page.mjs"
+  },
+  "dependencies": {
+    "docx-preview": "^0.4.0",
+    "jszip": "^3.10.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^7.0.0"
   }
 }
