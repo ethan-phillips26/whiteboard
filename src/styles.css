@@ -1303,13 +1303,9 @@ table.items tr:hover td { background: var(--hover); }
     grid-template-rows: auto repeat(6, minmax(0, 1fr));
     grid-auto-rows: minmax(0, 1fr);
   }
-  .app.fit .cal-cell {
-    min-height: 0; overflow: hidden;
-    /* The fade covers exactly the cell's bottom padding, so a day whose chips
-       fit is untouched and only one that overflows softens at the edge. */
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 6px), transparent);
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 6px), transparent);
-  }
+  /* Clipped, not faded: a mask makes the cell's bottom edge transparent, and the
+     grid's line colour showing through reads as a shadow under every day. */
+  .app.fit .cal-cell { min-height: 0; overflow: hidden; }
 
   /* The deadline list scrolls inside its own panel, so it cannot push the page
      past the bottom of the screen. The fade says there is more below. */

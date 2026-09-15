@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Connect Whiteboard to Blackboard</title>
   <style>
-    :root { color-scheme: light dark; --fg: #1d1d1f; --muted: #6b6b70; --bg: #fafaf8; --line: #dcdcd6; --accent: #2f5fd0; }
-    @media (prefers-color-scheme: dark) { :root { --fg: #ececee; --muted: #9a9aa2; --bg: #17171a; --line: #34343a; --accent: #7d9cf0; } }
+    /* Canvas and CanvasText are the browser's own page colours, so this page sits
+       on exactly the background the system theme gives every other page. */
+    :root { color-scheme: light dark; --fg: CanvasText; --muted: #6b6b70; --bg: Canvas; --line: #dcdcd6; --accent: #2f5fd0; }
+    @media (prefers-color-scheme: dark) { :root { --muted: #9a9aa2; --line: #34343a; --accent: #7d9cf0; } }
     body { margin: 0; padding: 12vh 20px; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
     main { max-width: 30rem; margin: 0 auto; }
     h1 { font-size: 1.35rem; margin: 0 0 .5rem; }
