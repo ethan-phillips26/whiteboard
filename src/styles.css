@@ -474,6 +474,8 @@ input[type="number"] { -moz-appearance: textfield; }
   font-size: 13.5px; color: var(--ink-2);
 }
 .install-steps code { font-size: 12px; overflow-wrap: anywhere; }
+/* Sits under the demo button and explains it, so it reads as that button's caption. */
+.login-panel .demo-note { text-align: center; margin-top: -8px; }
 
 /* ---------------------------------------------------------- stats / figures */
 

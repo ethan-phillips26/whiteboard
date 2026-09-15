@@ -4,7 +4,10 @@
 // outgrow. Where IndexedDB is refused (some private windows), the store lives in
 // memory for the tab instead: slower to come back, never wrong.
 
-const DB = "whiteboard";
+import { DEMO } from "./mode.js";
+
+// The demo keeps its own database, so trying it never touches real data.
+const DB = DEMO ? "whiteboard-demo" : "whiteboard";
 const STORE = "cache";
 
 // How long each kind of fetched data stays fresh, in seconds.

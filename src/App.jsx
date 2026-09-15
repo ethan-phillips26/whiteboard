@@ -300,6 +300,7 @@ export default function App() {
         order={order}
         onLogout={logout}
         loggingOut={loggingOut}
+        demo={api.demo}
       />
 
       <main className="main">

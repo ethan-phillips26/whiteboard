@@ -15,7 +15,7 @@ function fullName(me) {
 }
 
 export default function Sidebar({ me, courses, counts, route, order,
-                                  onLogout, loggingOut }) {
+                                  onLogout, loggingOut, demo = false }) {
   // Every course the sync kept. Courses whose gradebook the instructor hides
   // from students are dropped at the source, so there is nothing to filter here.
   const listed = courses;
@@ -27,6 +27,7 @@ export default function Sidebar({ me, courses, counts, route, order,
         <div>
           <div className="brand-name">Whiteboard</div>
         </div>
+        {demo && <span className="flag">Demo</span>}
       </div>
 
       {/* On a phone the sidebar lies down into one bar and this is the part
@@ -84,7 +85,9 @@ export default function Sidebar({ me, courses, counts, route, order,
       <div className="side-foot">
         <div className="side-who" title={fullName(me)}>{fullName(me)}</div>
         <button className="side-out" onClick={onLogout} disabled={loggingOut}>
-          {loggingOut ? <><span className="spin" /> Logging out</> : "Log out"}
+          {loggingOut
+            ? <><span className="spin" /> {demo ? "Leaving" : "Logging out"}</>
+            : demo ? "Exit demo" : "Log out"}
         </button>
       </div>
     </aside>

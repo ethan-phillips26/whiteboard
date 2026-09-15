@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { modeUrl } from "../browser/mode.js";
 
 // Built into the site by vite.config.js, from the same commit as this page.
 const DOWNLOAD = "./whiteboard-connector.zip";
@@ -117,6 +118,10 @@ export default function ExtensionLogin({ auth, onSignedIn }) {
         <a className="btn primary login-submit" href={DOWNLOAD} download="whiteboard-connector.zip">
           Download the extension
         </a>
+        <a className="btn login-submit" href={modeUrl(true)}>See a demo</a>
+        <p className="note dim demo-note">
+          Made-up data for a sample NDSU computer science student. No account needed.
+        </p>
         {FIREFOX ? [firefox, chromium] : [chromium, firefox]}
         <button className="login-submit" onClick={() => window.location.reload()}>
           I've installed it — reload

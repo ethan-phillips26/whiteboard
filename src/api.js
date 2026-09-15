@@ -4,6 +4,7 @@
 
 import { save } from "./lib/download.js";
 import { ask, present } from "./browser/bridge.js";
+import { DEMO, modeUrl } from "./browser/mode.js";
 import * as E from "./browser/edits.js";
 import * as G from "./browser/grades.js";
 import * as ics from "./browser/ics.js";
@@ -111,9 +112,17 @@ export const api = {
     // browser's cookie jar — so "log out" forgets everything this app holds and
     // takes back the extension's permission to read Blackboard.
     await sync.forget();
+    // The demo has nothing to disconnect; leaving it means going back to the real
+    // page, and the navigation means this never needs to resolve.
+    if (DEMO) {
+      location.replace(modeUrl(false));
+      return new Promise(() => {});
+    }
     await ask({ type: "disconnect" });
     return authStatus();
   },
+  /** Whether this is the demo, with made-up data. */
+  demo: DEMO,
   assignment: (courseId, contentId) => sync.assignment(courseId, contentId),
   fetchFiles: (courseId, contentId) => sync.downloadFiles(courseId, contentId),
   refresh: () => sync.refresh(true),
