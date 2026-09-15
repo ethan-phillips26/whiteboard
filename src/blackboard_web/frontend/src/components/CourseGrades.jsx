@@ -1,45 +1,23 @@
-import { useState } from "react";
-import { api } from "../api.js";
+import { href } from "../lib/route.js";
 import GradeCalculator from "./GradeCalculator.jsx";
 
 /**
  * Where the course's grade actually comes from: the weighting, the arithmetic,
  * and every row that feeds it.
  *
- * The syllabus panel lives here rather than on its own tab because it is only
- * ever read to answer a question about the numbers beside it.
+ * Blackboard knows which category each row sits in but not what a category is
+ * worth — that is in the syllabus, as prose — so until percentages are entered
+ * in this course's settings the grade is weighted by points, the same total
+ * Blackboard's own gradebook shows.
  */
-export default function CourseGrades({ course, standing, onChange }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-
-  async function readSyllabus() {
-    setBusy(true);
-    setError(null);
-    try {
-      await api.weights(course.course_id, true);
-      await onChange();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function mapCategory(label, categoryId) {
-    setBusy(true);
-    try {
-      await api.setMapping(course.course_id, label, categoryId || null);
-      await onChange();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const weighted = standing?.weighted_by === "syllabus";
-  const inferred = standing?.grouped_by === "inferred";
+export default function CourseGrades({ course, standing }) {
+  const weighted = standing?.weighted_by === "custom";
+  // Once any category has a percentage, one left without counts for nothing,
+  // and that is worth saying rather than leaving to be noticed.
+  const uncounted = weighted
+    ? standing.categories.filter((c) => c.weight == null).map((c) => c.title)
+    : [];
+  const settings = `${href.settings}/${encodeURIComponent(course.course_id)}`;
 
   return (
     <>
@@ -48,17 +26,20 @@ export default function CourseGrades({ course, standing, onChange }) {
           <div className="panel-head">
             <h2>Breakdown</h2>
             <span className="note dim">
-              weighted by {standing.weighted_by}
-              {inferred && <> · items sorted by name</>}
+              {weighted ? "weighted by your percentages" : "weighted by points"}
             </span>
+            <div className="spacer" />
+            <a className="btn" href={settings}>
+              {weighted ? "Edit weighting" : "Set weighting"}
+            </a>
           </div>
 
           {standing.categories.map((c) => (
             <div className="catrow" key={c.category_id ?? c.title}>
               <span className="nm">{c.title}</span>
               <span className="w">
-                {weighted && c.weight != null
-                  ? `${Math.round(c.weight * 100)}%`
+                {weighted
+                  ? c.weight != null ? `${Math.round(c.weight * 100)}%` : "—"
                   : `${Math.round(c.effective_weight * 100)}%*`}
               </span>
               <span className="bar">
@@ -72,14 +53,15 @@ export default function CourseGrades({ course, standing, onChange }) {
 
           {!weighted && (
             <p className="note dim foot-note">
-              * weighted by points — no syllabus weighting stored yet.
+              * weighted by points. Enter the syllabus's percentages in{" "}
+              <a className="link" href={settings}>this course's settings</a> to
+              weight it the way your instructor grades.
             </p>
           )}
 
-          {standing.empty_components?.length > 0 && (
+          {uncounted.length > 0 && (
             <p className="note dim foot-note">
-              Nothing in the gradebook yet for{" "}
-              {standing.empty_components.join(", ")}.
+              Not counted, because they have no percentage: {uncounted.join(", ")}.
             </p>
           )}
         </section>
@@ -110,81 +92,6 @@ export default function CourseGrades({ course, standing, onChange }) {
           </table>
         </section>
       )}
-
-      <section className="panel">
-        <div className="panel-head">
-          <h2>Syllabus</h2>
-          <div className="spacer" />
-          <button onClick={readSyllabus} disabled={busy}>
-            {busy ? <><span className="spin" /> Reading</>
-              : weighted ? "Re-read syllabus" : "Read syllabus & sort gradebook"}
-          </button>
-        </div>
-
-        {standing.syllabus ? (
-          <p className="note dim">Read from {standing.syllabus.filename}.</p>
-        ) : standing.weight_status === "no_syllabus_found" ? (
-          <p className="empty">No syllabus file found in this course.</p>
-        ) : (
-          /* A head over an empty box reads as something that failed to load. */
-          <p className="empty">
-            Nothing read yet — the syllabus is what turns a points total into
-            the weighting your instructor actually grades on.
-          </p>
-        )}
-        {standing.late_policy && (
-          <p className="note foot-note">
-            <strong>Late:</strong> {standing.late_policy}
-          </p>
-        )}
-        {error && <p className="err">{error}</p>}
-
-        {standing.unclassified?.length > 0 && (
-          <div className="warn-box">
-            <strong>Not sorted.</strong> These gradebook items don't match any
-            component the syllabus weights, so they're excluded:
-            <div className="note foot-note">
-              {standing.unclassified.join(", ")}
-            </div>
-          </div>
-        )}
-
-        {standing.suspect?.length > 0 && (
-          <div className="warn-box">
-            <strong>Check this mapping.</strong>{" "}
-            {standing.suspect.map((s) => (
-              <div key={s.syllabus_label}>
-                "{s.syllabus_label}" ({s.weight_pct}%) is {s.reason}.
-              </div>
-            ))}
-          </div>
-        )}
-
-        {standing.unmapped?.length > 0 && (
-          <div className="warn-box">
-            <strong>Unmapped weighting.</strong> The syllabus counts these toward
-            your grade, but they don't match a Blackboard category, so they're
-            excluded:
-            {standing.unmapped.map((u) => (
-              <div className="row map-row" key={u.syllabus_label}>
-                <span className="spacer">
-                  {u.syllabus_label} ({u.weight_pct}%)
-                </span>
-                <select
-                  defaultValue=""
-                  disabled={busy}
-                  onChange={(e) => mapCategory(u.syllabus_label, e.target.value)}
-                >
-                  <option value="">map to…</option>
-                  {standing.available_categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.title}</option>
-                  ))}
-                </select>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
     </>
   );
 }

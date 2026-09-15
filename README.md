@@ -2,8 +2,9 @@
 
 A read-only dashboard over Blackboard Learn — what's due, where you stand in each
 course, and a calendar feed you can subscribe to. Ships as a desktop app for
-Windows, macOS and Linux, and as an MCP server so an agent can answer "what's due
-this week" against the same data.
+Windows, macOS and Linux, as a static web page plus a browser extension, and as
+an MCP server so an agent can answer "what's due this week" against the same
+data.
 
 Unofficial, and not affiliated with Anthology Inc.
 
@@ -27,15 +28,19 @@ blackboard_web/        the dashboard
   cache.py             JSON store on disk, per-kind TTLs
   grades.py            weighted grade maths (pure)
   frontend/            React + Vite
+    src/browser/       the same routes, answered in the page (browser build)
 
+extension/             Whiteboard Connector: the browser build's way to Blackboard
 src-tauri/             the desktop shell (Rust, ~450 lines)
 ```
 
 **Data flow.** Every read goes through a JSON cache on disk with per-kind TTLs, so
 opening the app costs nothing and only an explicit refresh goes back to
 Blackboard. The whole cache is a few hundred KB. Grade maths is pure and runs
-locally — Blackboard supplies the structure and your scores, the syllabus supplies
-the weighting, and the percentages are computed here.
+locally — Blackboard supplies the structure and your scores, and the percentages
+are computed here. Blackboard doesn't say what each gradebook category is worth,
+so a course is weighted by points until you enter the syllabus's percentages in
+its settings.
 
 **Authentication is a cookie.** Blackboard's OAuth2 route needs an Application ID
 that your university's administrator has to whitelist, so this uses a session
@@ -79,6 +84,29 @@ npm run dev       # Vite on :5173, hot reload, proxies /api to :8765
 
 Open `http://127.0.0.1:5173`. Editing anything under `frontend/src` updates
 immediately; `:8765` serves the last built copy and will not.
+
+## Browser build
+
+The same dashboard as static files — GitHub Pages, no server. A web page can't
+read Blackboard itself (CORS, and pages can't send cookies), so the Whiteboard
+Connector extension in `extension/` makes every request with the session already
+in your browser, and hands the results to the page. Everything the server keeps on
+disk lives in the browser's IndexedDB instead. Google Docs is left out: its
+sign-in needs a server to hold the secret.
+
+```bash
+cd src/blackboard_web/frontend
+npm run build:browser   # -> dist-browser/
+npm run dev:browser     # Vite on :5173, no FastAPI needed
+```
+
+The published extension only talks to the Pages site. Working on a local build needs a
+copy of `extension/` that also allows `localhost` — see `extension/README.md`.
+
+Load `extension/` unpacked (Chrome/Edge) or as a temporary add-on (Firefox), open
+the page, and it walks you through connecting and signing in. The `pages`
+workflow deploys `dist-browser/` on every push to `main` once Pages is set to
+"GitHub Actions" in the repository settings.
 
 ## Desktop app
 
@@ -130,7 +158,6 @@ only ones that matter; everything else has a working default.
 | `BB_COOKIE` | session cookie; the desktop app fills this in |
 | `BB_STATE_DIR` | override where all state lives |
 | `BB_KEEPALIVE_MINUTES` | how often to ping so the session doesn't idle out (default 45) |
-| `BB_LLM` | `claude` or `ollama` — reads a syllabus for its grade weighting |
 | `BB_GOOGLE_CLIENT_ID` / `_SECRET` | optional, for "Open in Docs" |
 
 See `.env.example` for the rest.
@@ -155,7 +182,7 @@ A source checkout with an `.env` already beside it keeps using itself.
 Standalone scripts, not pytest; each exits non-zero on failure.
 
 ```bash
-uv run python tests/test_web.py         # cache, auth, syllabus weights
+uv run python tests/test_web.py         # cache, auth, category weights
 uv run python tests/test_grades.py      # weighted grade maths
 uv run python tests/test_end_to_end.py  # every MCP tool against a stub server
 ```
@@ -165,8 +192,10 @@ real one.
 
 ## Limitations
 
-- Grade weightings come from the syllabus, which a model reads. Check them; a
-  syllabus that states weights in prose is easy to get wrong.
+- Blackboard doesn't expose how categories are weighted, so a course is weighted
+  by points until you type the syllabus's percentages into its settings.
+- The browser build can't fetch a file Blackboard keeps on a separate storage
+  server the extension has no permission for; "Open in Blackboard" still works.
 - Blackboard Original and Ultra differ in what they expose. Links come from
   Blackboard's own `links[rel=alternate]`, never built by hand.
 - Use this on your own account. It's your data, but automated access may still sit

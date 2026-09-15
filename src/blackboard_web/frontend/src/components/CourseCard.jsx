@@ -4,21 +4,15 @@ import { href } from "../lib/route.js";
 /**
  * One course at a glance — a fixed shape so a row of them reads as a row.
  *
- * Everything that varies in length (category lists, syllabus warnings, the
- * calculator) lives on the course's own page; the card carries only the parts
- * every course has, so they all come out the same size.
+ * Everything that varies in length (the category list, the calculator) lives
+ * on the course's own page; the card carries only the parts every course has,
+ * so they all come out the same size.
  */
 export default function CourseCard({ course, standing, order }) {
   const cats = standing?.categories ?? [];
   const columns = cats.flatMap((c) => c.columns ?? []);
   const graded = columns.filter((c) => c.graded).length;
-
-  // Anything the student would want to fix, counted once.
-  const attention =
-    (standing?.unclassified?.length ?? 0) +
-    (standing?.unmapped?.length ?? 0) +
-    (standing?.suspect?.length ?? 0);
-  const noSyllabus = standing?.weighted_by !== "syllabus";
+  const weighted = standing?.weighted_by === "custom";
 
   return (
     <a
@@ -54,12 +48,10 @@ export default function CourseCard({ course, standing, order }) {
       </div>
 
       <div className="ccard-foot">
-        {attention > 0 ? (
-          <span className="flag warn">{attention} to check</span>
-        ) : noSyllabus ? (
-          <span className="flag">no syllabus weighting</span>
+        {weighted ? (
+          <span className="flag ok">weighted</span>
         ) : (
-          <span className="flag ok">weighted by syllabus</span>
+          <span className="flag">weighted by points</span>
         )}
         <span className="go" aria-hidden="true">→</span>
       </div>

@@ -282,7 +282,10 @@ button.linkish:hover:not(:disabled) {
 /* Every control the app owns, whatever its type — the browser's own widget for
    a date or a number would otherwise arrive at a different height and radius
    from the text box beside it. */
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+/* :where() so the exclusions cost no specificity. Written bare, the three :not()s
+   outrank any screen rule on an input, and `.set-weight input { width: 88px }`
+   lost to this `width: 100%` and squeezed its label to nothing. */
+input:where(:not([type="checkbox"]):not([type="radio"]):not([type="file"])),
 select,
 textarea {
   font: inherit; font-size: 13px; font-weight: 400; width: 100%; min-height: 33px;

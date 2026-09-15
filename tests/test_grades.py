@@ -99,7 +99,7 @@ g2["E1"] = {"displayGrade": {"score": n2["needed_points"]}}
 bd2 = build_breakdown(CATS, COLS, g2, W)
 check("scoring exactly what was asked hits the target", current_grade(bd2), target)
 
-print("\n[points mode] no syllabus weights available")
+print("\n[points mode] no weighting entered")
 bp = build_breakdown(CATS, COLS, GRADES, {})
 # Weighted by points: quiz 60/160, exam 100/160. Only quizzes graded -> 85%.
 check("current grade still computable", current_grade(bp), 85.0)
@@ -107,8 +107,8 @@ check("current grade still computable", current_grade(bp), 85.0)
 check("projection weights by points", projected_grade(bp, 1.0),
       (60 / 160) * 90 + (100 / 160) * 100)
 check("summarise reports the fallback", summarise(bp)["weighted_by"], "points")
-check("summarise reports syllabus weighting",
-      summarise(bd)["weighted_by"], "syllabus")
+check("summarise reports an entered weighting",
+      summarise(bd)["weighted_by"], "custom")
 
 print("\n[edge cases]")
 check("zero-point columns are ignored",

@@ -2,9 +2,7 @@
 
 The dashboard should feel instant and should not re-ask Blackboard for things it
 already knows. Every fetched resource lands here with a timestamp; reads are
-served from disk until the entry ages past its TTL. Derived knowledge that is
-expensive to produce (syllabus weightings, LLM summaries) is stored without a TTL
-and only recomputed when its inputs actually change.
+served from disk until the entry ages past its TTL.
 """
 
 from __future__ import annotations

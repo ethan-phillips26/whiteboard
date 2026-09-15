@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Whiteboard · extension demo</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root { color-scheme: light dark; --fg: #1d1d1f; --muted: #6b6b70; --bg: #fafaf8; --panel: #fff; --line: #e2e2dc; --accent: #2f5fd0; --warn: #b3261e; }
+    @media (prefers-color-scheme: dark) { :root { --fg: #ececee; --muted: #9a9aa2; --bg: #17171a; --panel: #1f1f23; --line: #33333a; --accent: #7d9cf0; --warn: #f2b8b5; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 40px 20px 80px; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+    main { max-width: 44rem; margin: 0 auto; }
+    header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.4rem; margin: 0; }
+    h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 1.75rem 0 .5rem; }
+    .pill { font-size: .8rem; padding: .15rem .6rem; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+    section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; }
+    p { margin: 0 0 1rem; }
+    .muted { color: var(--muted); }
+    .row { display: flex; gap: .5rem; flex-wrap: wrap; }
+    input { flex: 1 1 14rem; font: inherit; padding: .55rem .7rem; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; }
+    button { font: inherit; font-weight: 600; padding: .55rem 1rem; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
+    .note { margin: .75rem 0 0; color: var(--muted); min-height: 1.5em; }
+    .error { color: var(--warn); }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { display: flex; justify-content: space-between; gap: 1rem; padding: .55rem 0; border-top: 1px solid var(--line); }
+    li:first-child { border-top: 0; }
+    li .when { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    li .sub { display: block; color: var(--muted); font-size: .85rem; }
+    details { margin-top: 2rem; }
+    summary { cursor: pointer; color: var(--muted); }
+    #log { font: 12px/1.6 ui-monospace, monospace; margin-top: .5rem; overflow-x: auto; }
+    #log li { display: block; padding: .2rem 0; white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Whiteboard</h1>
+      <span class="pill" id="state">starting…</span>
+    </header>
+
+    <section id="install" hidden>
+      <p><strong>The Whiteboard Connector extension isn't installed.</strong></p>
+      <p class="muted">This page can't read Blackboard by itself — browsers don't let one
+        website read another's data. The extension does the reading, with your
+        permission, and hands the results to this page.</p>
+    </section>
+
+    <section id="connect" hidden>
+      <form id="connect-form">
+        <p>Which Blackboard do you use?</p>
+        <div class="row">
+          <input id="host" placeholder="blackboard.example.edu" required>
+          <button id="connect-btn">Connect</button>
+        </div>
+      </form>
+      <p class="note" id="connect-note" role="status"></p>
+    </section>
+
+    <section id="signin" hidden>
+      <p>You're not signed in to <strong id="signin-host"></strong>.</p>
+      <button id="signin-btn">Sign in to Blackboard</button>
+      <p class="note" id="signin-note" role="status"></p>
+    </section>
+
+    <section id="dash" hidden>
+      <p>Signed in as <strong id="who"></strong> <span class="muted">on <span id="where"></span></span></p>
+      <h2>Due in the next 60 days</h2>
+      <ul id="due"><li class="muted">Loading…</li></ul>
+      <h2>Courses</h2>
+      <ul id="courses"><li class="muted">Loading…</li></ul>
+      <p class="note error" id="dash-error" role="alert"></p>
+    </section>
+
+    <details>
+      <summary>Requests made through the extension (<span id="log-count">0</span>)</summary>
+      <ol id="log"></ol>
+    </details>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

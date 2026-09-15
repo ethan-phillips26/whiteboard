@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { extension, save } from "../lib/download.js";
 import { ago, dateTime, filesize, points, relative } from "../lib/format.js";
 import { canView } from "../lib/viewer.js";
+import { savedFile, whyNotFetched } from "./AssignmentDrawer.jsx";
 import BbLink from "./BbLink.jsx";
 import DocumentViewer from "./DocumentViewer.jsx";
 import RichText, { clamp, visibleLength } from "./RichText.jsx";
@@ -97,8 +98,7 @@ function Item({ node, courseId, assignment, column, onOpen, forceOpen }) {
 
   /** Blackboard names a file; this is what turns that into the file itself. */
   function downloaded(result, filename, index) {
-    const rows = result?.downloaded ?? [];
-    return rows.find((f) => f.filename === filename) ?? rows[index];
+    return savedFile(result, filename, index);
   }
 
   /**
@@ -113,7 +113,7 @@ function Item({ node, courseId, assignment, column, onOpen, forceOpen }) {
       const result = saved ?? await api.fetchFiles(courseId, node.content_id);
       if (!saved) setSaved(result);
       const file = downloaded(result, filename, index);
-      if (!file?.url) setError(`Blackboard would not give up ${filename}.`);
+      if (!file?.url) setError(whyNotFetched(result, filename));
       else if (canView(filename)) setViewing(file);
       else save(file.url, file.filename);
     } catch (e) {
@@ -212,11 +212,13 @@ function Item({ node, courseId, assignment, column, onOpen, forceOpen }) {
           )}
 
           {error && <p className="err">{error}</p>}
-          {saved?.failed?.length > 0 && (
-            <p className="err">
-              {saved.failed.map((f) => f.filename).join(", ")} could not be fetched.
-            </p>
-          )}
+          {saved?.failed
+            ?.filter((f) => !error?.includes(f.filename))
+            .map((f) => (
+              <p className="err" key={f.filename}>
+                Couldn't fetch {f.filename}: {f.error}
+              </p>
+            ))}
           {viewing && (
             <DocumentViewer file={viewing} onClose={() => setViewing(null)} />
           )}

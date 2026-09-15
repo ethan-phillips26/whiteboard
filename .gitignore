@@ -52,3 +52,7 @@ Desktop.ini
 .vscode/
 *.swp
 *.log
+
+# The browser build, produced by `npm run build:browser` and deployed by the pages workflow.
+dist-browser/
+CLAUDE.md

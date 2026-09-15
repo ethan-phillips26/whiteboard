@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CALENDAR_URL, api } from "./api.js";
+import { api, features } from "./api.js";
 import Announcements from "./components/Announcements.jsx";
 import DesktopLogin from "./components/DesktopLogin.jsx";
+import ExtensionLogin from "./components/ExtensionLogin.jsx";
 import AssignmentDrawer from "./components/AssignmentDrawer.jsx";
 import Calendar from "./components/Calendar.jsx";
 import CoursePage, { TABS } from "./components/CoursePage.jsx";
@@ -115,7 +116,6 @@ export default function App() {
       // the reader staring at an error they cannot act on.
       const status = await api.authStatus().catch(() => null);
       if (status && !status.logged_in) {
-        setAutoState("running");
         setAuth(status);
         setData(null);
       }
@@ -227,9 +227,6 @@ export default function App() {
     try {
       const nextAuth = await api.logout();
       setAuth(nextAuth);
-      // Logging out drops the saved password too, so there is nothing left to
-      // sign back in with — but say so plainly rather than relying on that.
-      setManualLogin(true);
       setData(null);
       setEvents([]);
       setError(null);
@@ -303,9 +300,14 @@ export default function App() {
     );
   }
 
-  // One way in. The window sign-in needs nothing from us but the address, and
-  // works at any institution, so there is no second path worth keeping.
+  // One way in per build. The desktop app signs in through a window of its own;
+  // the browser build has no server to hold a session, so it goes through the
+  // extension. Both need nothing from us but the address and work at any
+  // institution.
   if (!auth?.logged_in) {
+    if (features.login === "extension") {
+      return <ExtensionLogin auth={auth} onSignedIn={setAuth} />;
+    }
     return (
       <DesktopLogin
         auth={auth}
@@ -401,10 +403,9 @@ export default function App() {
             <button className="primary" onClick={syncNow} disabled={syncing}>
               {syncing ? <><span className="spin" /> Syncing</> : "Sync now"}
             </button>
-            <a className="btn" href={`${CALENDAR_URL}?download=true`}
-               download="coursework.ics">
+            <button onClick={() => api.exportCalendar().catch((e) => setError(e.message))}>
               Export .ics
-            </a>
+            </button>
           </div>
         </header>
 

@@ -1,0 +1,51 @@
+# The browser build of the dashboard: static files that reach Blackboard through
+# the Whiteboard Connector extension, with no server anywhere. For the deploy to
+# have somewhere to go, Pages must be set to "GitHub Actions" in the repository's
+# settings.
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/blackboard_web/frontend/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/blackboard_web/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/blackboard_web/frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build:browser
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: src/blackboard_web/frontend/dist-browser
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

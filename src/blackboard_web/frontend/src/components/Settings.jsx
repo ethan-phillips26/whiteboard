@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../api.js";
+import { api, features } from "../api.js";
 import GoogleSetup from "./GoogleSetup.jsx";
 import { THEMES, resolve } from "../lib/theme.js";
 import { dateTime, filesize, points } from "../lib/format.js";
@@ -44,29 +44,32 @@ function Appearance({ theme, onTheme }) {
   );
 }
 
-// Only the percentage is editable. The labels are the buckets every gradebook
-// row was sorted into, so renaming one here would orphan everything under it —
-// and these percentages drive every grade the dashboard calculates.
+/** One decimal place, which is as fine as any syllabus states a weighting. */
+const tenths = (x) => Math.round(x * 10) / 10;
+
+// Blackboard knows which category each row sits in but not what a category is
+// worth — that is in the syllabus, as prose — so the percentages are typed here,
+// one per category. Until they are, the course is weighted by points, and the
+// boxes start from exactly that, so saving without touching them changes
+// nothing. The uncategorised rows are addressed as "".
 function WeightRow({ course, standing, onSaved, showName = true }) {
-  const components = standing?.components ?? [];
-  const [draft, setDraft] = useState(() =>
-    Object.fromEntries(components.map((c) => [c.syllabus_label, c.weight_pct ?? 0]))
+  const categories = standing?.categories ?? [];
+  const keyOf = (c) => c.category_id ?? "";
+  const initial = useMemo(
+    () => Object.fromEntries(categories.map((c) =>
+      [keyOf(c), tenths(100 * (c.weight ?? c.effective_weight ?? 0))])),
+    [standing] // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const [draft, setDraft] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
-  useEffect(() => {
-    setDraft(Object.fromEntries(
-      components.map((c) => [c.syllabus_label, c.weight_pct ?? 0])
-    ));
-  }, [standing]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setDraft(initial); }, [initial]);
 
   const total = Object.values(draft).reduce((a, b) => a + (Number(b) || 0), 0);
-  const dirty = components.some(
-    (c) => Number(draft[c.syllabus_label]) !== Number(c.weight_pct ?? 0)
-  );
+  const dirty = categories.some((c) => Number(draft[keyOf(c)]) !== initial[keyOf(c)]);
 
-  if (!components.length) {
+  if (!categories.length) {
     return (
       <div className="set-course">
         <div className="set-course-head">
@@ -74,7 +77,7 @@ function WeightRow({ course, standing, onSaved, showName = true }) {
           <span className="note dim">
             {standing?.accessible === false
               ? "gradebook hidden by the instructor"
-              : "no syllabus weighting read yet — open the course and extract it first"}
+              : "nothing in the gradebook to weight yet"}
           </span>
         </div>
       </div>
@@ -108,14 +111,14 @@ function WeightRow({ course, standing, onSaved, showName = true }) {
           {total.toFixed(0)}% of 100
         </span>
       </div>
-      {components.map((c) => (
-        <label className="set-weight" key={c.syllabus_label}>
-          <span className="set-weight-label">{c.syllabus_label}</span>
+      {categories.map((c) => (
+        <label className="set-weight" key={keyOf(c)}>
+          <span className="set-weight-label">{c.title}</span>
           <input
             type="number" min="0" max="100" step="0.5"
-            value={draft[c.syllabus_label] ?? 0}
+            value={draft[keyOf(c)] ?? 0}
             onChange={(e) =>
-              setDraft((d) => ({ ...d, [c.syllabus_label]: e.target.value }))}
+              setDraft((d) => ({ ...d, [keyOf(c)]: e.target.value }))}
           />
           <span className="note dim">%</span>
         </label>
@@ -126,7 +129,7 @@ function WeightRow({ course, standing, onSaved, showName = true }) {
           {busy ? <><span className="spin" /> Saving</> : "Save"}
         </button>
         {standing?.weights_edited && (
-          <button onClick={reset} disabled={busy}>Use the syllabus again</button>
+          <button onClick={reset} disabled={busy}>Weight by points again</button>
         )}
       </div>
     </div>
@@ -251,7 +254,6 @@ function courseSummary(course, data) {
 
 function CourseButton({ course, data }) {
   const { due, hidden, changed, standing } = courseSummary(course, data);
-  const weights = standing?.components?.length ?? 0;
   return (
     <a className="ccard set-card" href={`#/settings/${course.course_id}`}>
       <div className="ccard-head">
@@ -264,7 +266,7 @@ function CourseButton({ course, data }) {
       </div>
       <div className="set-card-meta note dim">
         <div>
-          {weights ? `${weights} weighted parts` : "no syllabus weighting yet"}
+          {standing?.weighted_by === "custom" ? "weighting entered" : "weighted by points"}
         </div>
         <div>
           {due} {due === 1 ? "deadline" : "deadlines"}
@@ -390,7 +392,7 @@ export default function Settings({ data, courseId, theme, onTheme, onReload,
 
       <Appearance theme={theme} onTheme={onTheme} />
 
-      <GoogleSetup />
+      {features.google && <GoogleSetup />}
 
       <section className="section" id="courses">
         <div className="panel-head">

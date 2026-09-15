@@ -3,8 +3,8 @@
 Blackboard access here is read-only, and a refresh overwrites the cached copy of
 every assignment every fifteen minutes. So a correction a student makes — a due
 date the instructor moved in class but never in Blackboard, a column name that
-means nothing out of context, a weighting the syllabus states differently from
-what the model read — cannot live in the fetched data. It is kept in its own
+means nothing out of context, what each gradebook category is worth — cannot
+live in the fetched data. It is kept in its own
 cache entry and re-applied on every read, which means a sync can never quietly
 undo it.
 
@@ -71,10 +71,10 @@ def clear_assignment(cache: Cache, key: str) -> dict[str, Any]:
 
 def set_weights(cache: Cache, course_id: str, weights: dict[str, float]
                 ) -> dict[str, Any]:
-    """Override the weight on syllabus components, keyed by their label.
+    """What each gradebook category is worth, in percent, keyed by category id.
 
-    Only the percentage is editable. The labels are what the gradebook's rows
-    were sorted into, so renaming one here would orphan every row under it.
+    "" addresses the rows the instructor left uncategorised. See
+    `sync.category_weights` for how these are read back.
     """
     data = load(cache)
     cleaned = {str(k): float(v) for k, v in (weights or {}).items()}

@@ -1,3 +1,9 @@
+import { save } from "./lib/download.js";
+
+/** What this build can do. The browser build (browser/api.js) answers these
+ * differently: no Google connection, and sign-in through the extension. */
+export const features = { google: true, login: "desktop" };
+
 async function request(path, options) {
   const res = await fetch(path, {
     headers: { "Content-Type": "application/json" },
@@ -28,9 +34,11 @@ async function request(path, options) {
 }
 
 /** The calendar feed doubles as a subscription URL, so it is named once here. */
-export const CALENDAR_URL = "/api/calendar.ics";
+const CALENDAR_URL = "/api/calendar.ics";
 
 export const api = {
+  /** Save the feed as a file, for importing into a calendar by hand. */
+  exportCalendar: async () => save(`${CALENDAR_URL}?download=true`, "coursework.ics"),
   /** The raw iCalendar document the calendar grid renders. */
   calendar: async (refresh = false) => {
     const res = await fetch(`${CALENDAR_URL}?refresh=${refresh}`, {
@@ -77,13 +85,6 @@ export const api = {
     }),
   courseContent: (courseId, refresh = false) =>
     request(`/api/courses/${courseId}/content?refresh=${refresh}`),
-  weights: (courseId, extract = false) =>
-    request(`/api/courses/${courseId}/weights?extract=${extract}`),
-  setMapping: (courseId, syllabus_label, category_id) =>
-    request(`/api/courses/${courseId}/mapping`, {
-      method: "POST",
-      body: JSON.stringify({ syllabus_label, category_id }),
-    }),
   needed: (courseId, column_id, target, rate) =>
     request(`/api/courses/${courseId}/needed`, {
       method: "POST",

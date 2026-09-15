@@ -1,8 +1,9 @@
 # Whiteboard — a read-only dashboard over Blackboard Learn
 
-Two front ends over one Blackboard client: an **MCP server** (`blackboard_mcp`) so an
-agent can answer "what's due this week", and a **web dashboard** (`blackboard_web`,
-FastAPI + React) for a person. ~5k lines of Python, ~5.9k of frontend.
+Front ends over one Blackboard client: an **MCP server** (`blackboard_mcp`) so an
+agent can answer "what's due this week", a **web dashboard** (`blackboard_web`,
+FastAPI + React) for a person, and a **browser build** of that dashboard — static
+files plus the Whiteboard Connector extension (`extension/`), no server at all.
 
 **Everything is read-only.** The client only ever issues `GET` to Blackboard. Nothing
 here submits, posts, or changes anything on the university's side. Keep it that way.
@@ -18,9 +19,12 @@ uv sync                                  # install
 cd src/blackboard_web/frontend
 npm run dev                              # Vite on :5173, proxies /api to :8765
 npm run build                            # -> dist/, which FastAPI serves
+npm run build:browser                    # -> dist-browser/, the static build for Pages
+npm run dev:browser                      # Vite on :5173 in browser mode; needs a dev copy
+                                         # of the extension that allows localhost (see below)
 
 # tests are standalone scripts, not pytest; each exits non-zero on failure
-.venv/bin/python tests/test_web.py       # cache + syllabus weight resolution
+.venv/bin/python tests/test_web.py       # cache, category weights, routes
 .venv/bin/python tests/test_grades.py    # weighted grade maths
 .venv/bin/python tests/test_end_to_end.py  # every MCP tool against a stub server
 
@@ -58,17 +62,19 @@ src/blackboard_web/       the dashboard
   grades.py               weighted grade maths
   edits.py                local corrections layered over Blackboard's answers
   ics.py                  the .ics feed the calendar grid renders from
-  llm.py                  the only model calls: syllabus weights, cached on inputs
   notices.py              which announcements have been popped up already
   gdocs.py                OAuth upload of a handout to Google Docs
-  textextract.py          plain text out of pdf/docx/etc.
   frontend/src/
     App.jsx               shell, routing, auth states, the shared course order
     styles.css            the whole design system (tokens → primitives → screens)
     api.js                every endpoint, named once
+    browser/              the browser build's api.js: sync, cache, grades, edits,
+                          ics, notices ported to JS; IndexedDB; talks via the extension
     lib/                  format, ics parser, viewer (docx/pptx), theme, route, read, title
     components/           one file per screen or widget
 
+extension/                Whiteboard Connector (MV3, Chrome + Firefox): the browser
+                          build's only way to Blackboard; background.js is the gate
 src-tauri/                the desktop shell (Windows and macOS; Linux installs the wheel)
   src/main.rs             starts the sidecar, waits for it, points a window at it
   ui/index.html           the splash, shown while that happens
@@ -236,6 +242,34 @@ would put a 124MB node driver into every installer.
 `target/` at Rust build time, so freezing a new sidecar without rebuilding the shell
 leaves the app running the previous one. That failure is silent and looks exactly like
 your change not working.
+
+**The browser build swaps one module at build time.** `vite --mode browser` aliases
+every `./api.js` / `../api.js` import to `browser/api.js`, which answers the same
+functions in the page. A screen that needs to know which build it is in reads
+`features` from `api.js` — never `import.meta.env`. Anything added to the server's
+`api.js` needs a twin there, or the browser build breaks only at runtime.
+
+**`browser/` ports the Python, field for field.** `sync.js`, `grades.js`, `edits.js`,
+`ics.js` and `text.js` mirror `sync.py`, `grades.py`, `edits.py`, `ics.py` and the
+parsing in `client.py`/`server.py`. Change the shape on one side and change it on the
+other; the screens cannot tell the builds apart and should not have to.
+
+**The extension is the read-only rule for the browser build.** `background.js` only
+issues `GET`, only under `/learn/api/public/` (plus `/bbcswebdav/` for files), only on
+the one host the person connected, and only for pages in `PAGE_ORIGINS`. The page can
+ask for anything; the worker decides. It answers the Pages site only. Local work needs
+a copy with `http://localhost/*` added to the content script's `matches` and to
+`PAGE_ORIGINS`; never commit or publish that, or any page on the machine can use it.
+
+**Blackboard 403s any request whose `Origin` is not its own.** Chrome sends none on an
+extension's GETs; a `declarativeNetRequest` session rule strips it anyway for browsers
+that do. That rule has not been verified in Firefox.
+
+**Grade weights are the student's, keyed by gradebook category id.** Blackboard does
+not expose what a category is worth, so a course is weighted by points until
+percentages are entered; `""` addresses the uncategorised rows. An edit whose key no
+category has (a deleted category, a label from the removed syllabus reading) matches
+nothing — `sync.category_weights` — rather than half-applying.
 
 ## Conventions
 

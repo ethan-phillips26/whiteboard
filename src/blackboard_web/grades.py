@@ -100,8 +100,8 @@ def build_breakdown(
 def _effective_weights(breakdown: list[dict[str, Any]]) -> dict[str | None, float]:
     """Each category's weight, falling back to points when none was supplied.
 
-    A course with no syllabus weighting still needs an answer, and weighting by
-    points is what Blackboard itself does in that situation.
+    A course nobody has weighted still needs an answer, and weighting by points
+    is what Blackboard itself does in that situation.
     """
     declared = {b["category_id"]: b["weight"] for b in breakdown
                 if _num(b["weight"]) is not None}
@@ -228,7 +228,7 @@ def summarise(
         "projected_pct": round(proj, 2) if proj is not None else None,
         "projected_letter": letter_for(proj, scale),
         "assumed_rate": rate,
-        "weighted_by": "syllabus" if any(
+        "weighted_by": "custom" if any(
             _num(b["weight"]) is not None for b in breakdown) else "points",
         "categories": [
             {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api.js";
+import { api, features } from "../api.js";
 import { extension, save } from "../lib/download.js";
 import { dateTime, filesize, points, relative } from "../lib/format.js";
 import { OVERLAY, useTitle } from "../lib/title.js";
@@ -16,6 +16,26 @@ import { Sep } from "./Sep.jsx";
  * due date — so the drawer has something real to show from the first frame,
  * before the instructions arrive.
  */
+/**
+ * The downloaded copy of one attachment. It is found by the name Blackboard gave
+ * it or the name it was saved under; its position in the list is trusted only when
+ * nothing failed, because after a failure position N is some other file — and
+ * handing over the wrong handout is worse than saying this one did not come.
+ */
+export function savedFile(result, filename, index) {
+  const rows = result?.downloaded ?? [];
+  return rows.find((f) => f.filename === filename || f.original === filename)
+    ?? (result?.failed?.length ? undefined : rows[index]);
+}
+
+/** Why a file did not arrive, as specifically as the fetch said. */
+export function whyNotFetched(result, filename) {
+  const failed = result?.failed?.find((f) => f.filename === filename);
+  return failed?.error
+    ? `Couldn't fetch ${filename}: ${failed.error}`
+    : `Blackboard would not give up ${filename}.`;
+}
+
 export default function AssignmentDrawer({ target, onClose }) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +76,9 @@ export default function AssignmentDrawer({ target, onClose }) {
   // Whether the Docs button can work is a property of the machine, not of this
   // assignment, so ask once when the drawer opens.
   useEffect(() => {
+    // A build with no Google connection has nothing to ask, and no setup link
+    // worth offering.
+    if (!features.google) return undefined;
     let live = true;
     api.googleStatus()
       .then((g) => live && setGoogle(g))
@@ -93,9 +116,8 @@ export default function AssignmentDrawer({ target, onClose }) {
   async function fetched(filename, index) {
     const result = files ?? await api.fetchFiles(courseId, contentId);
     if (!files) setFiles(result);
-    const row = result?.downloaded?.find((f) => f.filename === filename)
-      ?? result?.downloaded?.[index];
-    if (!row?.url) throw new Error(`Blackboard would not give up ${filename}.`);
+    const row = savedFile(result, filename, index);
+    if (!row?.url) throw new Error(whyNotFetched(result, filename));
     return row;
   }
 
@@ -210,9 +232,7 @@ export default function AssignmentDrawer({ target, onClose }) {
 
                 {attachments.map((a, i) => {
                   // Once downloaded, the same file is servable by name.
-                  const saved = files?.downloaded?.find(
-                    (f) => f.filename === a.filename
-                  ) ?? files?.downloaded?.[i];
+                  const saved = savedFile(files, a.filename, i);
                   // Once downloaded the size is measured rather than claimed.
                   const size = filesize(saved?.bytes ?? a.bytes);
                   const doc = docs[a.filename];
@@ -279,12 +299,14 @@ export default function AssignmentDrawer({ target, onClose }) {
                 })}
 
                 {fileError && <p className="err">{fileError}</p>}
-                {files?.failed?.length > 0 && (
-                  <p className="err">
-                    {files.failed.length} file(s) could not be fetched:{" "}
-                    {files.failed.map((f) => f.filename).join(", ")}
-                  </p>
-                )}
+                {/* The reason, not just the name: it is usually the fix. */}
+                {files?.failed
+                  ?.filter((f) => !fileError?.includes(f.filename))
+                  .map((f) => (
+                    <p className="err" key={f.filename}>
+                      Couldn't fetch {f.filename}: {f.error}
+                    </p>
+                  ))}
                 {files?.directory && (
                   <p className="note dim">Saved to {files.directory}</p>
                 )}

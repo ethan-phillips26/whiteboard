@@ -102,23 +102,11 @@ export default function CourseOverview({ standing, assignments, announcements,
             <div>
               <dt>Weighting</dt>
               <dd>
-                {standing?.weighted_by === "syllabus"
-                  ? "read from the syllabus"
-                  : "by points — no syllabus weighting yet"}
+                {standing?.weighted_by === "custom"
+                  ? "your percentages"
+                  : "by points — no weighting entered"}
               </dd>
             </div>
-            {standing?.late_policy && (
-              <div>
-                <dt>Late work</dt>
-                <dd>{standing.late_policy}</dd>
-              </div>
-            )}
-            {standing?.syllabus?.filename && (
-              <div>
-                <dt>Syllabus</dt>
-                <dd>{standing.syllabus.filename}</dd>
-              </div>
-            )}
           </dl>
         </section>
       </div>

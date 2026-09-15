@@ -1,4 +1,4 @@
-"""Cache behaviour and syllabus-weight resolution."""
+"""Cache behaviour, category weighting, content shaping and the web routes."""
 from __future__ import annotations
 
 import sys
@@ -17,10 +17,9 @@ from blackboard_web import ics  # noqa: E402
 from blackboard_web import grades as G  # noqa: E402
 from blackboard_web import sync  # noqa: E402
 from blackboard_web import notices as N  # noqa: E402
+from blackboard_web import edits as E  # noqa: E402
 from blackboard_web.sync import (  # noqa: E402
-    _category_digest, _components, _folded, _gradeable_columns, _named,
-    _populated_counts, _syllabus_score, classify_columns, resolve_weights,
-    strip_attachment_links, syllabus_categories, syllabus_weights,
+    _folded, _gradeable_columns, _named, strip_attachment_links,
 )
 
 FAILS: list[str] = []
@@ -51,18 +50,6 @@ with tempfile.TemporaryDirectory() as td:
     c.write("a/b", {"x": 1})
     check("keys with slashes are made safe", "a_b" in c.keys(), str(c.keys()))
 
-print("\n[syllabus scoring]")
-check("filename match scores highest",
-      _syllabus_score("Fall_2026_Syllabus.docx", "ultraDocumentBody", False) == 3)
-check("item title match counts",
-      _syllabus_score("doc.docx", "Course Syllabus", False) == 2)
-check("ancestor match counts a little",
-      _syllabus_score("doc.docx", "ultraDocumentBody", True) == 1)
-check("an unrelated file scores zero",
-      _syllabus_score("Assignment1.docx", "Assignment 1", False) == 0)
-check("signals add up",
-      _syllabus_score("Syllabus.pdf", "Course Syllabus", True) == 6)
-
 BUNDLE = {
     "categories": [{"id": "cq", "title": "Quiz"}, {"id": "ct", "title": "Test"},
                    {"id": "ca", "title": "Assignment"}],
@@ -78,58 +65,6 @@ BUNDLE = {
          "grading": {"type": "Calculated"}},
     ],
 }
-
-print("\n[category digest] what the model is shown")
-dg = _category_digest(BUNDLE)
-test_cat = next(d for d in dg if d["title"] == "Test")
-quiz_cat = next(d for d in dg if d["title"] == "Quiz")
-check("the Test category reveals it holds the quizzes",
-      test_cat["columns"] == ["Quiz 1", "Quiz 2"], str(test_cat))
-check("its points are totalled", test_cat["points_possible"] == 40.0)
-check("the empty Quiz category is shown as empty",
-      quiz_cat["column_count"] == 0, str(quiz_cat))
-check("the calculated column is excluded from every category",
-      all("Overall Grade" not in d["columns"] for d in dg), str(dg))
-check("populated counts skip calculated columns",
-      _populated_counts(BUNDLE) == {"ct": 2, "ca": 1}, str(_populated_counts(BUNDLE)))
-
-print("\n[weight resolution]")
-extracted = {"categories": [
-    {"syllabus_label": "Quizzes", "blackboard_category": "Test", "weight_pct": 40},
-    {"syllabus_label": "LABs", "blackboard_category": "Assignment", "weight_pct": 50},
-    {"syllabus_label": "Final Project", "blackboard_category": None, "weight_pct": 10},
-]}
-r = resolve_weights(extracted, BUNDLE["categories"], {}, _populated_counts(BUNDLE))
-check("titles resolve to category ids", r["mapping"] == {"ct": 0.4, "ca": 0.5}, str(r["mapping"]))
-check("mapped percentage reported", r["mapped_pct"] == 90.0, str(r["mapped_pct"]))
-check("a component with no match is listed unmapped",
-      [u["syllabus_label"] for u in r["unmapped"]] == ["Final Project"], str(r["unmapped"]))
-check("nothing suspect when mappings hit real columns", r["suspect"] == [], str(r["suspect"]))
-
-# The bug this guards against: matching "Quizzes" to the empty "Quiz" category.
-bad = {"categories": [
-    {"syllabus_label": "Quizzes", "blackboard_category": "Quiz", "weight_pct": 40}]}
-rb = resolve_weights(bad, BUNDLE["categories"], {}, _populated_counts(BUNDLE))
-check("mapping onto an empty category is flagged suspect",
-      [s["syllabus_label"] for s in rb["suspect"]] == ["Quizzes"], str(rb["suspect"]))
-
-print("\n[manual override]")
-ro = resolve_weights(extracted, BUNDLE["categories"], {"Final Project": "cq"},
-                     _populated_counts(BUNDLE))
-check("an override places the unmapped component", ro["mapping"].get("cq") == 0.1, str(ro["mapping"]))
-check("and it is no longer unmapped", ro["unmapped"] == [], str(ro["unmapped"]))
-check("full weighting now accounted for", ro["mapped_pct"] == 100.0)
-check("but an override onto an empty category is still flagged",
-      [s["syllabus_label"] for s in ro["suspect"]] == ["Final Project"], str(ro["suspect"]))
-check("case-insensitive title matching",
-      resolve_weights({"categories": [{"syllabus_label": "Q", "blackboard_category": "  test ",
-                                       "weight_pct": 10}]},
-                      BUNDLE["categories"])["mapping"] == {"ct": 0.1})
-check("two components on one category sum",
-      resolve_weights({"categories": [
-          {"syllabus_label": "A", "blackboard_category": "Test", "weight_pct": 30},
-          {"syllabus_label": "B", "blackboard_category": "Test", "weight_pct": 20}]},
-          BUNDLE["categories"])["mapping"] == {"ct": 0.5})
 
 print("\n[icalendar feed]")
 
@@ -217,30 +152,12 @@ check("folding never splits a multi-byte character",
       "SUMMARY:C: Café — naïve π" in unfold(utf8))
 
 
-print("\n[inferring a category from the item name]")
+print("\n[weighting by category]")
+import asyncio  # noqa: E402
 
-STORED = {"extracted": {"categories": [
-    {"syllabus_label": "Quizzes", "weight_pct": 40},
-    {"syllabus_label": "Labs", "weight_pct": 50},
-    {"syllabus_label": "Participation", "weight_pct": 10},
-]}}
-
-check("components come off the stored extraction",
-      [r["syllabus_label"] for r in _components(STORED)] == ["Quizzes", "Labs", "Participation"])
-check("a component with a blank label is ignored",
-      _components({"extracted": {"categories": [{"syllabus_label": "  ", "weight_pct": 5}]}}) == [])
-check("synthetic categories are one per component",
-      [c["id"] for c in syllabus_categories(_components(STORED))]
-      == ["syl:Quizzes", "syl:Labs", "syl:Participation"])
-check("weights are fractions keyed the same way",
-      syllabus_weights(_components(STORED)) == {"syl:Quizzes": 0.4, "syl:Labs": 0.5,
-                                                "syl:Participation": 0.1})
-check("two components with one label sum",
-      syllabus_weights([{"syllabus_label": "X", "weight_pct": 30},
-                        {"syllabus_label": "X", "weight_pct": 20}]) == {"syl:X": 0.5})
-check("only gradeable rows are offered for sorting",
+check("only gradeable rows count toward a grade",
       [c["name"] for c in _gradeable_columns(BUNDLE)] == ["Quiz 1", "Quiz 2", "Lab 1"])
-check("a zero-point row cannot move the grade, so it is not sorted at all",
+check("a zero-point row cannot move the grade, so it is left out",
       [c["name"] for c in _gradeable_columns({"columns": BUNDLE["columns"] + [
           {"id": "z", "name": "Class Survey", "score": {"possible": 0},
            "grading": {"type": "Attempts"}}]})] == ["Quiz 1", "Quiz 2", "Lab 1"])
@@ -248,90 +165,35 @@ check("a row with no points at all is treated the same way",
       _gradeable_columns({"columns": [
           {"id": "z", "name": "Placeholder", "grading": {"type": "Attempts"}}]}) == [])
 
+check("percentages become fractions for the categories this gradebook has",
+      sync.category_weights({"ct": 40, "ca": 60}, BUNDLE["categories"])
+      == {"ct": 0.4, "ca": 0.6})
+check("the uncategorised rows are addressed as the empty key",
+      sync.category_weights({"": 10}, BUNDLE["categories"]) == {"": 0.1})
+check("a key no category has — an old syllabus label, a deleted category — matches nothing",
+      sync.category_weights({"Quizzes": 40, "gone": 5}, BUNDLE["categories"]) == {})
 
-class FakeLLM:
-    """Stands in for the model so the sorting logic can be tested exactly."""
-
-    def __init__(self, items): self.items, self.calls = items, 0
-
-    def cached(self, cache, key, instr, data, schema, force=False):
-        self.calls += 1
-        self.last_payload = data
-        return {"data": {"items": self.items}, "cached": False, "generated_at": "now"}
-
-
-def sort_with(items, bundle=BUNDLE, stored=STORED):
-    import blackboard_web.sync as S
-    fake = FakeLLM(items)
-    real, S.llm = S.llm, fake
-    try:
-        with tempfile.TemporaryDirectory() as td:
-            return classify_columns(Cache(Path(td)), "_c_", stored, bundle), fake
-    finally:
-        S.llm = real
-
-
-# The whole point: "Quiz 1" and "Quiz 2" sit in Blackboard's "Test" category and
-# "Lab 1" in "Assignment". The names say otherwise, and the names win.
-res, fake = sort_with([{"n": 1, "syllabus_label": "Quizzes"},
-                       {"n": 2, "syllabus_label": "Quizzes"},
-                       {"n": 3, "syllabus_label": "Labs"}])
-check("items are placed by name, not by the category set on them",
-      res["map"] == {"1": "syl:Quizzes", "2": "syl:Quizzes", "3": "syl:Labs"}, str(res["map"]))
-check("nothing is left over", res["unclassified"] == [])
-check("the model is shown the item names and points",
-      '"Quiz 1"' in fake.last_payload and '"points": 20' in fake.last_payload)
-check("the model is shown the components to sort into",
-      '"Quizzes"' in fake.last_payload and '"weight_pct": 40' in fake.last_payload)
-check("the model is never shown the instructor's categories",
-      "Test" not in fake.last_payload and "gradebookCategoryId" not in fake.last_payload,
-      fake.last_payload[:200])
-
-res, _ = sort_with([{"n": 1, "syllabus_label": "Quizzes"},
-                    {"n": 2, "syllabus_label": None},
-                    {"n": 3, "syllabus_label": "Labs"}])
-check("an item the model could not place is reported, not guessed",
-      res["unclassified"] == ["Quiz 2"], str(res["unclassified"]))
-
-res, _ = sort_with([{"n": 1, "syllabus_label": "Homework"},
-                    {"n": 2, "syllabus_label": "Quizzes"}])
-check("a label the syllabus does not have is discarded",
-      res["map"] == {"2": "syl:Quizzes"}, str(res["map"]))
-check("and that item counts as unsorted",
-      res["unclassified"] == ["Quiz 1", "Lab 1"], str(res["unclassified"]))
-
-res, _ = sort_with([{"n": 9, "syllabus_label": "Quizzes"},
-                    {"n": 0, "syllabus_label": "Labs"},
-                    {"n": "2", "syllabus_label": "Quizzes"}])
-check("an out-of-range or non-integer item number is ignored",
-      res["map"] == {}, str(res["map"]))
-
-res, fake = sort_with([], stored={"extracted": {"categories": []}})
-check("with no syllabus components the model is never called", fake.calls == 0)
-check("and that is reported rather than silently empty",
-      res["status"] == "nothing_to_classify", res["status"])
-
-print("\n[weighting on the inferred buckets]")
 GRADES = {"1": {"displayGrade": {"score": 18}}, "2": {"displayGrade": {"score": 16}},
           "3": {"displayGrade": {"score": 20}}}
-cats = syllabus_categories(_components(STORED))
-placed = {"1": "syl:Quizzes", "2": "syl:Quizzes", "3": "syl:Labs"}
-bd = G.build_breakdown(cats, _gradeable_columns(BUNDLE), GRADES,
-                       syllabus_weights(_components(STORED)), assign=placed)
-by_title = {b["title"]: b for b in bd}
-check("quizzes are pooled into one bucket",
-      by_title["Quizzes"]["total_possible"] == 40.0 and by_title["Quizzes"]["earned"] == 34.0,
-      str(by_title["Quizzes"]))
-check("the lab lands in its own bucket", by_title["Labs"]["earned"] == 20.0)
-check("a component with no items produces no bucket", "Participation" not in by_title)
-check("the weighted standing uses the syllabus percentages",
-      # 85% of 40 + 100% of 50, renormalised over the 90 that is graded
-      round(G.current_grade(bd), 2) == round((0.4 * 85 + 0.5 * 100) / 0.9, 2),
-      str(G.current_grade(bd)))
-check("without an assignment map Blackboard's own categories still apply",
-      {b["title"] for b in G.build_breakdown(BUNDLE["categories"],
-                                             _gradeable_columns(BUNDLE), GRADES)}
-      == {"Test", "Assignment"})
+with tempfile.TemporaryDirectory() as td:
+    c = Cache(Path(td))
+    c.write("course__c_", {**BUNDLE, "grades": GRADES, "accessible": True})
+    by_points = asyncio.run(sync.course_standing(c, "_c_"))
+    check("with nothing entered the course is weighted by points",
+          by_points["weighted_by"] == "points" and not by_points["weights_edited"],
+          str(by_points)[:200])
+    # 34/40 on the quizzes and 20/20 on the lab: 54 of 60 points.
+    check("which is the plain points total", by_points["current_pct"] == 90.0,
+          str(by_points["current_pct"]))
+    E.set_weights(c, "_c_", {"ct": 40, "ca": 60})
+    weighted = asyncio.run(sync.course_standing(c, "_c_"))
+    check("entered percentages take over",
+          weighted["weighted_by"] == "custom" and weighted["weights_edited"], str(weighted)[:200])
+    check("and drive the grade", weighted["current_pct"] == round(0.4 * 85 + 0.6 * 100, 2),
+          str(weighted["current_pct"]))
+    E.set_weights(c, "_c_", {"Quizzes": 40})
+    check("an edit left over from the syllabus labels is ignored, not half-applied",
+          asyncio.run(sync.course_standing(c, "_c_"))["weighted_by"] == "points")
 
 
 print("\n[assignment instructions]")

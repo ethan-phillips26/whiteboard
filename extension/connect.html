@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connect Whiteboard to Blackboard</title>
+  <style>
+    :root { color-scheme: light dark; --fg: #1d1d1f; --muted: #6b6b70; --bg: #fafaf8; --line: #dcdcd6; --accent: #2f5fd0; }
+    @media (prefers-color-scheme: dark) { :root { --fg: #ececee; --muted: #9a9aa2; --bg: #17171a; --line: #34343a; --accent: #7d9cf0; } }
+    body { margin: 0; padding: 12vh 20px; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+    main { max-width: 30rem; margin: 0 auto; }
+    h1 { font-size: 1.35rem; margin: 0 0 .5rem; }
+    p { color: var(--muted); margin: 0 0 1.25rem; }
+    label { display: block; font-weight: 600; margin-bottom: .35rem; }
+    .row { display: flex; gap: .5rem; flex-wrap: wrap; }
+    input { flex: 1 1 14rem; font: inherit; padding: .55rem .7rem; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; }
+    button { font: inherit; font-weight: 600; padding: .55rem 1rem; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
+    #msg { margin-top: 1rem; color: var(--fg); min-height: 1.5em; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Connect Whiteboard to Blackboard</h1>
+    <p>Whiteboard reads your courses, due dates and grades using the Blackboard session
+      you already have in this browser, and fetches handouts from Blackboard's file
+      storage (blackboardcdn.com). It only ever reads — it can't submit, post or change
+      anything.</p>
+    <form id="form">
+      <label for="host">Blackboard address</label>
+      <div class="row">
+        <input id="host" placeholder="blackboard.example.edu" autocomplete="url" required>
+        <button id="allow">Allow access</button>
+      </div>
+    </form>
+    <div id="msg" role="status"></div>
+  </main>
+  <script src="origin.js"></script>
+  <script src="connect.js"></script>
+</body>
+</html>

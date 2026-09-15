@@ -2,20 +2,17 @@
 
 Every read goes through the cache. A cold start pulls the full picture; after
 that the dashboard reads from disk and re-fetches only the things that actually
-go out of date (assignments, grades, announcements), while the expensive derived
-knowledge — a syllabus's grade weighting — is computed once and kept.
+go out of date (assignments, grades, announcements).
 """
 
 from __future__ import annotations
 
 import asyncio
-import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from blackboard_mcp import paths
 from blackboard_mcp.client import BlackboardClient, BlackboardError, ForbiddenError
 from blackboard_mcp.server import (
     _GENERIC_TITLES, _client, _course_label, _course_title, _display_title,
@@ -30,10 +27,6 @@ from blackboard_mcp.client import (
 from .cache import Cache
 from . import edits as E
 from . import grades as G
-from . import llm, textextract
-
-SYLLABUS_HINTS = ("syllabus", "course info", "course information", "overview", "greensheet")
-
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -157,100 +150,6 @@ def _track_new(cache: Cache, due: dict[str, Any],
 
     cache.write("seen", {"assignments": assignments_seen, "announcements": ann_seen})
     return {"new_assignments": new_assignments, "new_announcements": new_announcements}
-
-
-# ------------------------------------------------------------------ syllabus
-
-
-def _syllabus_score(filename: str, title: str, ancestor_matched: bool) -> int:
-    """How much a candidate file looks like the course syllabus.
-
-    The filename is the strongest signal — "Fall_2026_Syllabus_Information.docx"
-    is unambiguous, while the item holding it is often called something generic
-    like "ultraDocumentBody".
-    """
-    name = filename.lower()
-    score = 0
-    if any(h in name for h in SYLLABUS_HINTS):
-        score += 3
-    if any(h in (title or "").lower() for h in SYLLABUS_HINTS):
-        score += 2
-    if ancestor_matched:
-        score += 1
-    return score
-
-
-async def find_syllabus(course_id: str, dest: Path, budget: int = 30
-                        ) -> dict[str, Any] | None:
-    """Find and download the course syllabus, or return None if there isn't one.
-
-    Walks the course tree collecting every document-like attachment, scores each
-    on how much it looks like a syllabus, and downloads only the best. Scoring
-    beats first-match: the first document in a course is usually assignment one.
-    """
-    doc_suffixes = (".docx", ".pdf", ".doc", ".txt", ".rtf", ".odt")
-    candidates: list[tuple[int, dict[str, Any]]] = []
-    spent = 0
-
-    async with _client() as bb:
-        async def walk(parent: str | None, depth: int, ancestor_matched: bool) -> None:
-            nonlocal spent
-            if depth > 2 or spent >= budget:
-                return
-            spent += 1
-            try:
-                items = await bb.contents(course_id, parent)
-            except BlackboardError:
-                return
-            for item in items:
-                title = item.get("title") or ""
-                matched = ancestor_matched or any(
-                    h in title.lower() for h in SYLLABUS_HINTS)
-                handler_obj = item.get("contentHandler") or {}
-
-                # Ultra embeds files in the item's own HTML.
-                for f in extract_embedded_files(content_instructions(item)):
-                    if Path(f.filename).suffix.lower() not in doc_suffixes:
-                        continue
-                    score = _syllabus_score(f.filename, title, ancestor_matched)
-                    if score > 0:
-                        candidates.append((score, {
-                            "kind": "inline", "url": f.url, "filename": f.filename,
-                            "content_id": item.get("id"), "item_title": title,
-                        }))
-
-                # A plain "file" item instead exposes it through /attachments.
-                if handler_obj.get("file") or handler_obj.get("id") == "resource/x-bb-file":
-                    for a in await bb.attachments(course_id, item.get("id") or ""):
-                        name = a.get("fileName") or ""
-                        if Path(name).suffix.lower() not in doc_suffixes:
-                            continue
-                        score = _syllabus_score(name, title, ancestor_matched)
-                        if score > 0:
-                            candidates.append((score, {
-                                "kind": "attachment", "attachment_id": a.get("id"),
-                                "filename": name, "content_id": item.get("id"),
-                                "item_title": title,
-                            }))
-                handler = str((item.get("contentHandler") or {}).get("id", ""))
-                if item.get("hasChildren") or "folder" in handler or "lesson" in handler:
-                    await walk(item.get("id"), depth + 1, matched)
-
-        await walk(None, 0, False)
-        if not candidates:
-            return None
-        score, best = max(candidates, key=lambda c: c[0])
-        if best["kind"] == "attachment":
-            data, _ = await bb.download_attachment(
-                course_id, best["content_id"], best["attachment_id"])
-        else:
-            data, _ = await bb.download_url(best["url"])
-        dest.mkdir(parents=True, exist_ok=True)
-        path = dest / best["filename"]
-        path.write_bytes(data)
-        return {"path": str(path), "filename": best["filename"],
-                "content_id": best["content_id"], "title": best["item_title"],
-                "match_score": score, "considered": len(candidates)}
 
 
 # ------------------------------------------------------------ course content
@@ -568,160 +467,11 @@ async def course_content(cache: Cache, course_id: str, force: bool = False
     return {**entry, "nodes": nodes, "counts": counts, "cached": False}
 
 
-WEIGHT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "categories": {"type": "array", "items": {
-            "type": "object",
-            "properties": {
-                "syllabus_label": {"type": "string"},
-                "blackboard_category": {"type": ["string", "null"]},
-                "weight_pct": {"type": "number"},
-            },
-            "required": ["syllabus_label", "blackboard_category", "weight_pct"],
-        }},
-        "letter_scale": {"type": "object", "additionalProperties": {"type": "number"}},
-        "late_policy": {"type": ["string", "null"]},
-        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
-        "notes": {"type": "string"},
-    },
-    "required": ["categories", "letter_scale", "late_policy", "confidence", "notes"],
-}
-
-WEIGHT_INSTR = """You are reading a university course syllabus to find how the final grade is weighted.
-
-Return the grade weighting as JSON.
-
-Rules:
-- `categories`: one entry per weighted component. weight_pct is out of 100, and they should sum to 100 when the syllabus is complete.
-- `blackboard_category`: match each component to EXACTLY ONE `title` from the BLACKBOARD CATEGORIES below, copied verbatim, or null when none is a reasonable match. Match on the ACTUAL COLUMNS each category contains, not on its name — a category called "Test" holding "Quiz 1".."Quiz 8" is where the syllabus's quizzes live, and an empty category with a matching name is the wrong answer. Never map two components to the same category; leave the weaker match null.
-- `letter_scale`: letter -> minimum percentage. Empty object if not stated.
-- `late_policy`: one short sentence, or null.
-- `confidence`: "high" only when weights are stated explicitly as percentages.
-- `notes`: brief; what a student should know that the numbers miss.
-Never invent a weight that is not in the document."""
-
-
-def _populated_counts(bundle: dict[str, Any]) -> dict[str, int]:
-    """How many real graded columns sit in each category."""
-    from blackboard_mcp.client import is_assignment_column
-    counts: dict[str, int] = {}
-    for c in bundle.get("columns", []):
-        if is_assignment_column(c) and c.get("gradebookCategoryId"):
-            counts[c["gradebookCategoryId"]] = counts.get(c["gradebookCategoryId"], 0) + 1
-    return counts
-
-
-def _category_digest(bundle: dict[str, Any]) -> list[dict[str, Any]]:
-    """Describe each category by what it actually holds.
-
-    Category names alone are misleading — an instructor's quizzes routinely sit in
-    a category called "Test" while a "Quiz" category sits empty. Showing the model
-    the real column names stops it matching on the label and silently dropping a
-    chunk of the grade.
-    """
-    from blackboard_mcp.client import is_assignment_column
-    columns = [c for c in bundle.get("columns", []) if is_assignment_column(c)]
-    out = []
-    for cat in bundle.get("categories", []):
-        names = [c.get("name") for c in columns
-                 if c.get("gradebookCategoryId") == cat.get("id")]
-        out.append({
-            "title": cat.get("title"),
-            "column_count": len(names),
-            "columns": names[:12],
-            "points_possible": round(sum(
-                float((c.get("score") or {}).get("possible") or 0)
-                for c in columns
-                if c.get("gradebookCategoryId") == cat.get("id")), 1),
-        })
-    return out
-
-
-def resolve_weights(extracted: dict[str, Any], categories: list[dict[str, Any]],
-                    overrides: dict[str, str] | None = None,
-                    populated: dict[str, int] | None = None) -> dict[str, Any]:
-    """Turn syllabus labels into {category_id: fraction}.
-
-    `overrides` maps a syllabus label to a Blackboard category id, which is how a
-    student fixes a component the model could not place (a "Projects" bucket with
-    no matching category, say).
-    """
-    overrides = overrides or {}
-    by_title = {(c.get("title") or "").strip().lower(): c.get("id")
-                for c in categories}
-    mapping: dict[str, float] = {}
-    unmapped: list[dict[str, Any]] = []
-    for row in extracted.get("categories", []):
-        label = row.get("syllabus_label") or ""
-        pct = float(row.get("weight_pct") or 0.0)
-        cat_id = overrides.get(label)
-        if not cat_id:
-            title = (row.get("blackboard_category") or "").strip().lower()
-            cat_id = by_title.get(title)
-        if cat_id:
-            mapping[cat_id] = mapping.get(cat_id, 0.0) + pct / 100.0
-        else:
-            unmapped.append({"syllabus_label": label, "weight_pct": pct})
-    suspect = []
-    if populated is not None:
-        for row in extracted.get("categories", []):
-            label = row.get("syllabus_label") or ""
-            cat_id = overrides.get(label) or by_title.get(
-                (row.get("blackboard_category") or "").strip().lower())
-            if cat_id and not populated.get(cat_id):
-                suspect.append({
-                    "syllabus_label": label,
-                    "weight_pct": row.get("weight_pct"),
-                    "category_id": cat_id,
-                    "reason": "mapped to a category that contains no graded columns",
-                })
-    return {
-        "mapping": mapping,
-        "unmapped": unmapped,
-        "suspect": suspect,
-        "mapped_pct": round(100.0 * sum(mapping.values()), 1),
-    }
-
-
-# ------------------------------------------------- inferring an item's category
-
-CLASSIFY_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "items": {"type": "array", "items": {
-            "type": "object",
-            "properties": {
-                "n": {"type": "integer"},
-                "syllabus_label": {"type": ["string", "null"]},
-            },
-            "required": ["n", "syllabus_label"],
-        }},
-    },
-    "required": ["items"],
-}
-
-CLASSIFY_INSTR = """You are sorting a university gradebook's items into the weighted components of its syllabus.
-
-You are given COMPONENTS (the syllabus's weighted parts) and ITEMS (the gradebook's rows, each with a number `n`, a name, and its points).
-
-For every item, return the one component it belongs to, judged ONLY from the item's own name and points.
-
-Rules:
-- Return exactly one entry per item, using the item's `n`.
-- `syllabus_label` must be copied verbatim from a COMPONENTS label, or be null.
-- Judge by what the NAME says the item is. "Quiz 3" is a quiz, "Lab 1" is a lab, "Exam 2" is an exam, "Reading Response 4" is a reading response — regardless of what anyone filed it under.
-- Points are a hint: a 200-point item among 20-point ones is likelier a project or final than a homework.
-- Use null only when no component plausibly covers the item. Do not force a bad fit, and do not invent a component that is not listed.
-- A component may take many items, or none."""
-
-
 def _gradeable_columns(bundle: dict[str, Any]) -> list[dict[str, Any]]:
     """The gradebook rows that can actually move the grade, in a stable order.
 
     A zero-point row — a survey, an attendance placeholder — carries no weight
-    however it is filed, so there is nothing to gain from sorting it and no
-    reason to report it as unsorted.
+    however it is filed, so it is left out rather than counted as nothing.
     """
     out = []
     for c in bundle.get("columns", []):
@@ -736,131 +486,22 @@ def _gradeable_columns(bundle: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
-def _components(stored: dict[str, Any] | None) -> list[dict[str, Any]]:
-    """The syllabus's weighted parts, as extracted earlier."""
-    rows = ((stored or {}).get("extracted") or {}).get("categories") or []
-    return [r for r in rows if (r.get("syllabus_label") or "").strip()]
-
-
-def syllabus_categories(components: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Synthetic categories, one per syllabus component.
-
-    Weighting hangs off the syllabus, so once items are placed by name the
-    syllabus's own components are the right buckets — Blackboard's categories
-    stop being part of the calculation at all.
-    """
-    return [{"id": f"syl:{r['syllabus_label']}", "title": r["syllabus_label"]}
-            for r in components]
-
-
-def syllabus_weights(components: list[dict[str, Any]]) -> dict[str, float]:
-    out: dict[str, float] = {}
-    for r in components:
-        key = f"syl:{r['syllabus_label']}"
-        out[key] = out.get(key, 0.0) + float(r.get("weight_pct") or 0.0) / 100.0
-    return out
-
-
-def classify_columns(cache: Cache, course_id: str, stored: dict[str, Any] | None,
-                     bundle: dict[str, Any], force: bool = False) -> dict[str, Any]:
-    """Place every gradebook item into a syllabus component, by its name.
-
-    The category an instructor set on a column is routinely wrong — quizzes filed
-    under "Test", half a course left "Uncategorised" — and it is the one input
-    here that nobody checks. The item's name is the honest signal, so that is what
-    gets read.
-    """
-    components = _components(stored)
-    columns = _gradeable_columns(bundle)
-    labels = {r["syllabus_label"] for r in components}
-    if not components or not columns:
-        return {"map": {}, "labels": sorted(labels), "unclassified": [],
-                "status": "nothing_to_classify"}
-
-    items = [{"n": i + 1, "name": c.get("name"),
-              "points": (c.get("score") or {}).get("possible")}
-             for i, c in enumerate(columns)]
-    payload = json.dumps({
-        "components": [{"label": r["syllabus_label"],
-                        "weight_pct": r.get("weight_pct")} for r in components],
-        "items": items,
-    }, indent=2)
-
-    result = llm.cached(cache, f"colcat_{course_id}", CLASSIFY_INSTR, payload,
-                        CLASSIFY_SCHEMA, force=force)
-    placed: dict[str, str] = {}
-    for row in (result["data"] or {}).get("items", []):
-        n = row.get("n")
-        label = (row.get("syllabus_label") or "").strip()
-        # A label the syllabus does not have is a hallucination, not a category.
-        if not isinstance(n, int) or not (1 <= n <= len(columns)) or label not in labels:
-            continue
-        col_id = columns[n - 1].get("id")
-        if col_id:
-            placed[col_id] = f"syl:{label}"
-
-    unclassified = [c.get("name") for c in columns if c.get("id") not in placed]
-    entry = {
-        "map": placed,
-        "labels": sorted(labels),
-        "unclassified": unclassified,
-        "status": "ok",
-        "classified_at": _now(),
-    }
-    cache.write(f"colmap_{course_id}", entry)
-    return entry
-
-
-async def get_weights(cache: Cache, course_id: str, force: bool = False
-                      ) -> dict[str, Any]:
-    """The stored grade weighting for a course, extracting it once if needed."""
-    key = f"weights_{course_id}"
-    stored = cache.get_data(key)
-    overrides = (stored or {}).get("overrides", {})
-    bundle = cache.get_data(f"course_{course_id}", {}) or {}
-    categories = bundle.get("categories", [])
-
-    if stored and not force:
-        resolved = resolve_weights(stored.get("extracted", {}), categories, overrides,
-                                   _populated_counts(bundle))
-        return {**stored, **resolved, "cached": True}
-
-    files_dir = paths.download_dir() / "syllabi" / course_id
-    found = await find_syllabus(course_id, files_dir)
-    if not found:
-        entry = {"course_id": course_id, "status": "no_syllabus_found",
-                 "extracted": {"categories": []}, "overrides": overrides}
-        cache.write(key, entry)
-        return {**entry, "mapping": {}, "unmapped": [], "mapped_pct": 0.0}
-
-    text = textextract.extract(found["path"])
-    if not text.strip():
-        entry = {"course_id": course_id, "status": "syllabus_unreadable",
-                 "syllabus": found, "extracted": {"categories": []},
-                 "overrides": overrides}
-        cache.write(key, entry)
-        return {**entry, "mapping": {}, "unmapped": [], "mapped_pct": 0.0}
-
-    data = (f"BLACKBOARD CATEGORIES: {json.dumps(_category_digest(bundle), indent=2)}"
-            f"\n\n=== SYLLABUS ===\n{text[:llm.max_document_chars()]}")
-    extracted = llm.run(WEIGHT_INSTR, data, WEIGHT_SCHEMA)
-    entry = {
-        "course_id": course_id, "status": "ok", "syllabus": found,
-        "extracted": extracted, "overrides": overrides, "extracted_at": _now(),
-    }
-    cache.write(key, entry)
-    resolved = resolve_weights(extracted, categories, overrides,
-                               _populated_counts(bundle))
-    # Weights are useless until the gradebook's rows are sorted into them, so do
-    # both in the one pass the student asked for.
-    try:
-        classified = classify_columns(cache, course_id, entry, bundle, force=force)
-    except llm.LLMError:
-        classified = {"status": "classification_failed"}
-    return {**entry, **resolved, "classified": classified, "cached": False}
-
-
 # -------------------------------------------------------------- assembly
+
+
+def category_weights(stored: dict[str, Any] | None,
+                     categories: list[dict[str, Any]]) -> dict[str, float]:
+    """The student's percentages, as fractions, for the categories this course has.
+
+    Blackboard knows which category every row sits in but not what a category is
+    worth — that is in the syllabus, in prose — so the percentages are typed in
+    by hand, one per category. They are keyed by category id, with "" for the
+    rows the instructor left uncategorised. A key nothing here answers to — a
+    category since deleted, or a label left by the old syllabus reading — matches
+    nothing rather than half-applying.
+    """
+    known = {c.get("id") for c in categories if c.get("id")} | {""}
+    return {k: float(v) / 100.0 for k, v in (stored or {}).items() if k in known}
 
 
 async def course_standing(cache: Cache, course_id: str) -> dict[str, Any]:
@@ -868,70 +509,16 @@ async def course_standing(cache: Cache, course_id: str) -> dict[str, Any]:
     if not bundle.get("accessible", True):
         return {"course_id": course_id, "accessible": False,
                 "reason": "This course's gradebook is hidden from students."}
-    stored = cache.get_data(f"weights_{course_id}") or {}
     categories = bundle.get("categories", [])
-    columns = _gradeable_columns(bundle)
-    grades = bundle.get("grades", {})
-    scale = (stored.get("extracted") or {}).get("letter_scale") or None
-
-    components = _components(stored)
-    # A weighting the student corrected by hand outranks the one read off the
-    # syllabus. Only the percentages move: the labels are what the gradebook's
-    # rows were sorted into, so renaming one would orphan everything under it.
-    manual = E.weights_for(cache, course_id)
-    if manual:
-        components = [{**r, "weight_pct": manual.get(r["syllabus_label"],
-                                                     r.get("weight_pct"))}
-                      for r in components]
-    colmap = cache.get_data(f"colmap_{course_id}") or {}
-    placed = {cid: cat for cid, cat in (colmap.get("map") or {}).items()
-              if any(c.get("id") == cid for c in columns)}
-
-    extra: dict[str, Any] = {}
-    if components and placed:
-        # Items were sorted by what they are called, so the syllabus's own
-        # components are the buckets and Blackboard's categories play no part.
-        cats = syllabus_categories(components)
-        breakdown = G.build_breakdown(cats, columns, grades,
-                                      syllabus_weights(components), assign=placed)
-        titles_with_items = {b["title"] for b in breakdown}
-        extra = {
-            "grouped_by": "inferred",
-            "unclassified": [c.get("name") for c in columns
-                             if c.get("id") not in placed],
-            "empty_components": [r["syllabus_label"] for r in components
-                                 if r["syllabus_label"] not in titles_with_items],
-            "unmapped": [],
-            "suspect": [],
-            "mapped_pct": round(100.0 * sum(syllabus_weights(components).values()), 1),
-        }
-    else:
-        # No syllabus, or the gradebook has not been sorted yet: fall back to the
-        # categories the instructor set, weighted by points if nothing is known.
-        resolved = resolve_weights(stored.get("extracted", {}), categories,
-                                   stored.get("overrides", {}),
-                                   _populated_counts(bundle))
-        breakdown = G.build_breakdown(categories, columns, grades,
-                                      resolved["mapping"])
-        extra = {
-            "grouped_by": "blackboard",
-            "unclassified": [],
-            "empty_components": [],
-            "unmapped": resolved["unmapped"],
-            "suspect": resolved.get("suspect", []),
-            "mapped_pct": resolved["mapped_pct"],
-        }
-
+    # Until a weighting is entered the grade is weighted by points, which is the
+    # same total Blackboard's own gradebook shows.
+    weights = category_weights(E.weights_for(cache, course_id), categories)
+    breakdown = G.build_breakdown(categories, _gradeable_columns(bundle),
+                                  bundle.get("grades", {}), weights)
     return {
         "course_id": course_id, "accessible": True,
-        **G.summarise(breakdown, scale),
-        **extra,
-        "syllabus": stored.get("syllabus"),
-        "weights_edited": bool(manual),
-        "components": [{"syllabus_label": r["syllabus_label"],
-                        "weight_pct": r.get("weight_pct")} for r in components],
-        "weight_status": stored.get("status", "not_extracted"),
-        "late_policy": (stored.get("extracted") or {}).get("late_policy"),
+        **G.summarise(breakdown),
+        "weights_edited": bool(weights),
         "available_categories": [{"id": c.get("id"), "title": c.get("title")}
                                  for c in categories],
     }

@@ -1,9 +1,7 @@
 """FastAPI backend for the Blackboard dashboard.
 
 Data routes call the Blackboard layer directly and serve from the JSON cache, so
-the UI is instant and costs nothing. Only one route involves a model: reading a
-syllabus for its grade weighting. It is cached on its inputs and only reruns
-when those inputs change.
+the UI is instant and costs nothing.
 """
 
 from __future__ import annotations
@@ -35,7 +33,7 @@ ENV_PATH = env_path()
 from . import __version__
 from . import grades as G
 from . import edits as E
-from . import gdocs, ics, llm, notices, sync
+from . import gdocs, ics, notices, sync
 from .cache import Cache
 
 app = FastAPI(title="Whiteboard")
@@ -52,11 +50,6 @@ DOWNLOADS = paths.download_dir()
 # meaning narrows, so entries written under the old shape are re-fetched rather
 # than served for the rest of their six hours.
 DETAIL_SCHEMA = 2
-
-
-class MappingBody(BaseModel):
-    syllabus_label: str
-    category_id: str | None = None
 
 
 class NeededBody(BaseModel):
@@ -314,18 +307,6 @@ async def force_refresh() -> dict[str, Any]:
     return await sync.refresh(cache, force=True)
 
 
-@app.get("/api/courses/{course_id}/weights")
-async def weights(course_id: str, extract: bool = False) -> dict[str, Any]:
-    """Stored grade weighting; pass extract=true to read the syllabus with a model."""
-    stored = cache.get_data(f"weights_{course_id}")
-    if stored is None and not extract:
-        return {"course_id": course_id, "status": "not_extracted"}
-    try:
-        return await sync.get_weights(cache, course_id, force=extract)
-    except llm.LLMError as e:
-        raise HTTPException(503, f"Syllabus reading failed: {e}") from e
-
-
 @app.get("/api/courses/{course_id}/content")
 async def course_content(course_id: str, refresh: bool = False) -> dict[str, Any]:
     """The course's content tree — the material the gradebook says nothing about.
@@ -337,23 +318,6 @@ async def course_content(course_id: str, refresh: bool = False) -> dict[str, Any
         return await sync.course_content(cache, course_id, force=refresh)
     except BlackboardError as e:
         raise HTTPException(502, f"Blackboard would not list this course: {e}") from e
-
-
-@app.post("/api/courses/{course_id}/mapping")
-async def set_mapping(course_id: str, body: MappingBody) -> dict[str, Any]:
-    """Attach a syllabus component the model could not place to a real category."""
-    key = f"weights_{course_id}"
-    stored = cache.get_data(key)
-    if not stored:
-        raise HTTPException(404, "No syllabus weighting stored for this course yet.")
-    overrides = dict(stored.get("overrides") or {})
-    if body.category_id:
-        overrides[body.syllabus_label] = body.category_id
-    else:
-        overrides.pop(body.syllabus_label, None)
-    stored["overrides"] = overrides
-    cache.write(key, stored)
-    return await sync.course_standing(cache, course_id)
 
 
 @app.post("/api/courses/{course_id}/needed")
@@ -688,7 +652,7 @@ async def delete_assignment_edit(key: str) -> dict[str, Any]:
 
 @app.put("/api/edits/weights/{course_id}")
 async def put_weights_edit(course_id: str, body: WeightsEditBody) -> dict[str, Any]:
-    """Override the weighting on a course's syllabus components."""
+    """Set what each gradebook category is worth, keyed by category id."""
     for label, pct in body.weights.items():
         if not 0 <= pct <= 100:
             raise HTTPException(400, f"{label!r}: {pct} is not a percentage.")
@@ -698,7 +662,7 @@ async def put_weights_edit(course_id: str, body: WeightsEditBody) -> dict[str, A
 
 @app.delete("/api/edits/weights/{course_id}")
 async def delete_weights_edit(course_id: str) -> dict[str, Any]:
-    """Go back to the weighting read off the syllabus."""
+    """Go back to weighting the course by points."""
     E.clear_weights(cache, course_id)
     return await sync.course_standing(cache, course_id)
 
@@ -737,9 +701,6 @@ async def health() -> dict[str, Any]:
     from blackboard_mcp.server import check_connection, session_status
     return {"blackboard": await check_connection(),
             "session": await session_status(),
-            "llm_available": llm.available(),
-            "llm_backend": llm.backend(),
-            "llm_model": llm.model(),
             "version": __version__,
             "state_dir": str(paths.state_dir()),
             "cache_keys": cache.keys()}
