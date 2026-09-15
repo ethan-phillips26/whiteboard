@@ -241,15 +241,26 @@ check("the next deadline is the hero figure",
 check("with the work it belongs to",
       stats.includes("Quiz 3") && stats.includes("CSCI 450"));
 check("the figure and its detail are grouped, so they can sit side by side",
-      stats.includes('class="hero-body"') && stats.includes('class="hero-detail"'),
+      stats.includes('class="band-clock"') && stats.includes('class="band-detail"'),
       stats);
 check("and the figures come with it",
-      ["Due this week", "Overdue", "Courses"].every((t) => stats.includes(t)));
-check("points at stake is not among them",
-      !stats.toLowerCase().includes("at stake"));
+      ["Due this week", "Overdue", "Semester GPA"].every((t) => stats.includes(t)));
+check("points at stake and the course count are not among them",
+      !stats.toLowerCase().includes("at stake") && !stats.includes("Courses"), stats);
+const graded = html(h(StatRow, {
+  assignments: [], courses: [{ course_id: "a" }, { course_id: "b" }, { course_id: "c" }],
+  standings: {
+    a: { accessible: true, current_pct: 93, current_letter: "A" },
+    b: { accessible: true, current_pct: 81, current_letter: "B-" },
+    c: { accessible: true, current_pct: null, current_letter: null },
+  },
+}));
+check("the GPA averages the grade points of the courses that have a grade",
+      graded.includes("3.35") && graded.includes("2 courses<") && !graded.includes("/4"),
+      graded);
 const quiet = html(h(StatRow, { assignments: [], courses: [] }));
 check("with nothing due it still draws, rather than blanking",
-      quiet.includes("Nothing is due") && quiet.includes('class="hero-body"'), quiet);
+      quiet.includes("Nothing is due") && quiet.includes('class="band-detail"'), quiet);
 
 console.log("\n[links] course text becomes clickable");
 const ADVISE = "https://career-advising.ndsu.edu/bisonadvise/";

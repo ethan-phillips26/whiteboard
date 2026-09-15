@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { courseSlot, dateTime, relative } from "../lib/format.js";
+import { gradePoints } from "../browser/grades.js";
+import { courseSlot, dateTime, points } from "../lib/format.js";
+import { Sep } from "./Sep.jsx";
 
 /** The hero figure: how long is left, in the largest unit that is still honest. */
 function countdown(due, now) {
@@ -16,7 +18,12 @@ function countdown(due, now) {
   return { value: Math.round(hours / 24), unit: "days left" };
 }
 
-export default function StatRow({ assignments, courses, order }) {
+/**
+ * The ink band: the countdown to the next deadline, then the three figures worth
+ * a glance. A course count and "points at stake" used to sit here too; neither
+ * changed what anyone did next, so they went.
+ */
+export default function StatRow({ assignments, courses, standings = {}, order }) {
   // The headline figure is a countdown, so it has to move. Once a minute is
   // enough for a card that reads in hours and days, and costs nothing.
   const [tick, setTick] = useState(() => Date.now());
@@ -34,69 +41,90 @@ export default function StatRow({ assignments, courses, order }) {
 
     const week = new Date(now.getTime() + 7 * 86400000);
     const upcoming = dated.filter((a) => a.due >= now);
-    const thisWeek = upcoming.filter((a) => a.due <= week);
     return {
       next: upcoming[0] ?? null,
-      thisWeek: thisWeek.length,
-      overdue: dated.filter((a) => a.due < now).length,
+      thisWeek: upcoming.filter((a) => a.due <= week).length,
+      overdue: dated.filter((a) => a.due < now),
     };
   }, [assignments, now]);
 
+  // Blackboard says nothing about credit hours, so every course counts the
+  // same. Each course's letter comes off its own scale; its points off the
+  // common 4.0 one.
+  const gpa = useMemo(() => {
+    const points = courses
+      .map((c) => standings[c.course_id])
+      .filter((s) => s?.accessible)
+      .map((s) => gradePoints(s.current_letter))
+      .filter((p) => p != null);
+    return {
+      value: points.length ? points.reduce((s, p) => s + p, 0) / points.length : null,
+      courses: points.length,
+    };
+  }, [courses, standings]);
+
   const next = stats.next;
   const clock = next ? countdown(next.due, now) : null;
+  const late = stats.overdue;
 
   return (
-    <section className="stats">
-      {/* The figure and the detail are grouped so that when this card has to
-          span the whole row — too narrow for five across — they can sit beside
-          each other instead of stacking in the corner of a very wide box. */}
-      <div className={"hero" + (clock?.late ? " late" : "")}>
-        <div className="label">Next deadline</div>
-        {next ? (
-          <div className="hero-body">
-            <div className="hero-num">
-              {clock.value}
-              <span className="hero-unit">{clock.unit}</span>
-            </div>
-            <div className="hero-detail">
-              <div className={"hero-what s" + courseSlot(next.course, order)}>
+    <section className={"band" + (clock?.late ? " late" : "")}>
+      <div className="band-hero">
+        <div className="band-clock">
+          <div className="label">Next deadline</div>
+          <div className="band-num">
+            {next ? clock.value : 0}
+            <span>{next ? clock.unit : "outstanding"}</span>
+          </div>
+        </div>
+        <div className="band-detail">
+          {next ? (
+            <>
+              <div className="band-title" title={next.title}>{next.title}</div>
+              <div className={"band-meta s" + courseSlot(next.course, order)}>
                 <i className="dot" />
-                <b>{next.title}</b>
-                <span className="course">{next.course}</span>
+                <span>
+                  {next.course}<Sep />{dateTime(next.due)}
+                  {points(next.points_possible)
+                    ? <><Sep />{points(next.points_possible)}</> : null}
+                </span>
               </div>
-              <div className="note">{dateTime(next.due)} · {relative(next.due, now)}</div>
-            </div>
-          </div>
-        ) : (
-          <div className="hero-body">
-            <div className="hero-num">
-              0<span className="hero-unit">outstanding</span>
-            </div>
-            <div className="hero-detail">
-              <div className="note">Nothing is due in the sync window.</div>
-            </div>
-          </div>
-        )}
+            </>
+          ) : (
+            <div className="band-meta">Nothing is due in the sync window.</div>
+          )}
+        </div>
       </div>
 
-      <Tile label="Due this week" value={stats.thisWeek} sub="next 7 days" />
-      <Tile
-        label="Overdue"
-        value={stats.overdue}
-        sub={stats.overdue ? "past the deadline" : "nothing missed"}
-        tone={stats.overdue ? "bad" : "ok"}
-      />
-      <Tile label="Courses" value={courses.length} sub="this term" />
+      <div className="band-stats">
+        <Stat label="Due this week" value={stats.thisWeek} note="next 7 days" />
+        <Stat
+          label="Overdue"
+          value={late.length}
+          note={late.length ? late[0].title : "nothing missed"}
+          tone={late.length ? "bad" : "ok"}
+        />
+        <Stat
+          label="Semester GPA"
+          value={gpa.value == null ? "—" : gpa.value.toFixed(2)}
+          note={gpa.value == null
+            ? "nothing graded yet"
+            : `${gpa.courses} ${gpa.courses === 1 ? "course" : "courses"}`}
+        />
+      </div>
     </section>
   );
 }
 
-function Tile({ label, value, sub, tone }) {
+function Stat({ label, value, unit, note, tone }) {
   return (
-    <div className={"tile" + (tone ? ` ${tone}` : "")}>
+    <div className={"stat" + (tone ? ` ${tone}` : "")}>
       <div className="label">{label}</div>
-      <div className="tile-num">{value}</div>
-      <div className="note dim">{sub}</div>
+      <div className="stat-num">
+        {value}
+        {unit && <small>{unit}</small>}
+      </div>
+      <div className="stat-note" title={note}>{note}</div>
     </div>
   );
 }

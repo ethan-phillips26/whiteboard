@@ -10,82 +10,116 @@
 /* ------------------------------------------------------------------ tokens */
 
 :root {
-  /* Surfaces, lightest to most raised. --panel-2 is an inset *inside* a
-     panel — search fields, segmented tracks, chips — never a card of its own. */
-  --bg: #f4f6f9;
-  --panel: #ffffff;
-  --panel-2: #f1f4f8;
-  --hover: #e9edf4;
+  /* Surfaces. Paper is the page, panel is anything set on it, sunk is what
+     sits beneath it (the sidebar). Hairlines do the work shadows used to:
+     nothing below an overlay has elevation. */
+  --paper: #f7f4ed;
+  --panel: #fffdf8;
+  --sunk: #efeade;
+  --hover: #f1ead6;
+  --rule: #ddd7c9;
+  --rule-soft: #eee7d8;
+  --rule-strong: #cdc4ac;
 
-  --ink: #14161b;
-  --ink-2: #464d5a;
-  --muted: #6b7280;
+  --ink: #1c1a17;
+  --ink-hover: #33302a;
+  --ink-2: #4a463e;
+  --ink-3: #8d8778;
+  /* Dimmed dates only, never text that carries meaning: it is below 4.5:1. */
+  --ink-4: #b3ab97;
+  /* Text set on an ink fill — the countdown band, primary buttons, counts. */
+  --on-ink: #f7f4ed;
+  --on-ink-2: #c9c2ae;
+  --on-ink-3: #9a917c;
+  --on-ink-rule: #35312a;
 
-  --line: #e3e7ee;
-  --line-2: #cdd4e0;
+  --link: #2b5f8f;
+  --ok: #2f7a6a;
+  --warn: #8a6a12;
+  --danger: #a33c28;
 
-  --accent: #2a78d6;
-  --accent-soft: #e7f0fc;
-  --ok: #15803d;
-  --warn: #b45309;
-  --bad: #c02929;
+  /* Pill and flag tones: overdue, due soon, later, fine. */
+  --tone-od-fg: #8e2f22;    --tone-od-bg: #f8e7e1;    --tone-od-bd: #e6c3b7;
+  --tone-soon-fg: #7a5a12;  --tone-soon-bg: #f7efdb;  --tone-soon-bd: #e3d3a8;
+  --tone-later-fg: #4a463e; --tone-later-bg: #f3eee1; --tone-later-bd: #ddd7c9;
+  --tone-ok-fg: #20604f;    --tone-ok-bg: #e4efe9;    --tone-ok-bd: #bcd6cb;
 
-  /* One radius scale. Controls are r-2, cards are r-4, nothing is arbitrary. */
-  --r-1: 5px;
-  --r-2: 8px;
-  --r-3: 10px;
-  --r-4: 13px;
-  --pill: 999px;
+  /* Course identity — eight categorical slots, assigned by sorted course name
+     and never cycled. Colour is always printed beside the course's name and
+     never carries meaning alone. */
+  --course-1: #b1543a; --course-2: #a8792a; --course-3: #5f7a2e; --course-4: #2f7a6a;
+  --course-5: #2e6b96; --course-6: #5a5aa8; --course-7: #8f4a82; --course-8: #8a5a3c;
 
-  --shadow-1: 0 1px 2px rgba(16, 20, 30, .04), 0 1px 3px rgba(16, 20, 30, .05);
-  --shadow-2: 0 2px 6px rgba(16, 20, 30, .06), 0 8px 24px rgba(16, 20, 30, .07);
-  --shadow-3: 0 18px 52px rgba(16, 20, 30, .20);
-  --scrim: rgba(12, 15, 22, .44);
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 
-  /* Course identity — eight validated categorical slots, assigned in a fixed
-     order and never cycled. Colour is always paired with the course's name. */
-  --s0: #2a78d6; --s1: #eb6834; --s2: #1baf7a; --s3: #d99100;
-  --s4: #e2679b; --s5: #0e93ad; --s6: #6d4fd0; --s7: #d94040;
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px;
+  --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
+
+  /* Rows, cells and the band are square; panels and buttons barely round;
+     inputs a little more. Nothing is pill-shaped. */
+  --r-row: 0;
+  --r-panel: 2px;
+  --r-input: 4px;
+
+  /* The only shadows in the system, and only on what floats over the page. */
+  --e-overlay: -10px 0 28px rgba(40, 34, 20, .14);
+  --e-modal: 0 8px 28px rgba(40, 34, 20, .18);
+  --scrim: rgba(28, 26, 23, .38);
+
+  --t-fade: 140ms ease;
+  --t-slide: 200ms ease-out;
   color-scheme: light;
 }
 
-/* The app always stamps data-theme on <html> — "system" is resolved to a real
-   value in JS and re-resolved when the OS flips — so one dark block serves both
-   the system preference and an explicit choice, with no second copy to drift. */
+/* The app always stamps data-theme on <html>, light unless dark was chosen; the
+   machine's own preference is never consulted, so there is no media query. */
 :root[data-theme="dark"] {
-  --bg: #0e1014;
-  --panel: #171a21;
-  --panel-2: #1e222b;
-  --hover: #262c37;
+  --paper: #191710;
+  --panel: #211e16;
+  --sunk: #13110c;
+  --hover: #262218;
+  --rule: #332e22;
+  --rule-soft: #2a251b;
+  --rule-strong: #443d2d;
 
-  --ink: #e7e9ee;
-  --ink-2: #b9bfcc;
-  --muted: #939bab;
+  --ink: #f2ede0;
+  --ink-hover: #ffffff;
+  --ink-2: #c3bca9;
+  --ink-3: #8f8878;
+  --ink-4: #5f5a4c;
+  /* The band inverts to a light fill rather than going darker still. */
+  --on-ink: #191710;
+  --on-ink-2: #3a352a;
+  --on-ink-3: #5f5a4c;
+  --on-ink-rule: #d8d1bf;
 
-  --line: #272c37;
-  --line-2: #3a4251;
+  --link: #78b0dd;
+  --ok: #5fc0ab;
+  --warn: #dcae52;
+  --danger: #e8836b;
 
-  --accent: #4a92ea;
-  --accent-soft: #17273d;
-  --ok: #4ade80;
-  --warn: #fbbf24;
-  --bad: #f0736f;
+  --tone-od-fg: #ffd9cd;    --tone-od-bg: #3d211a;    --tone-od-bd: #5d3225;
+  --tone-soon-fg: #f2dca6;  --tone-soon-bg: #332a15;  --tone-soon-bd: #4e401f;
+  --tone-later-fg: #c3bca9; --tone-later-bg: #262218; --tone-later-bd: #332e22;
+  --tone-ok-fg: #b6e7db;    --tone-ok-bg: #16302a;    --tone-ok-bd: #255043;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, .34);
-  --shadow-2: 0 2px 6px rgba(0, 0, 0, .38), 0 8px 24px rgba(0, 0, 0, .30);
-  --shadow-3: 0 18px 52px rgba(0, 0, 0, .55);
-  --scrim: rgba(4, 6, 10, .62);
+  /* The same eight hues, re-stepped for a dark surface — not a flipped palette. */
+  --course-1: #e08a6b; --course-2: #d9ab5c; --course-3: #98bd63; --course-4: #5fc0ab;
+  --course-5: #6fb0e0; --course-6: #9a97e8; --course-7: #d288c0; --course-8: #c79a74;
 
-  /* The same eight hues, stepped for the dark surface — not a flipped palette. */
-  --s0: #4a92ea; --s1: #f0784a; --s2: #2cc08c; --s3: #dfa726;
-  --s4: #ed7fae; --s5: #33b3ca; --s6: #9585ec; --s7: #ef6b6b;
+  --e-overlay: -10px 0 28px rgba(0, 0, 0, .5);
+  --e-modal: 0 8px 28px rgba(0, 0, 0, .55);
+  --scrim: rgba(0, 0, 0, .58);
   color-scheme: dark;
 }
 
-.s0 { --series: var(--s0); } .s1 { --series: var(--s1); }
-.s2 { --series: var(--s2); } .s3 { --series: var(--s3); }
-.s4 { --series: var(--s4); } .s5 { --series: var(--s5); }
-.s6 { --series: var(--s6); } .s7 { --series: var(--s7); }
+/* courseSlot() names the class; the class names the colour. */
+.s0 { --series: var(--course-1); } .s1 { --series: var(--course-2); }
+.s2 { --series: var(--course-3); } .s3 { --series: var(--course-4); }
+.s4 { --series: var(--course-5); } .s5 { --series: var(--course-6); }
+.s6 { --series: var(--course-7); } .s7 { --series: var(--course-8); }
 
 /* -------------------------------------------------------------------- base */
 
@@ -95,9 +129,12 @@ html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--paper);
   color: var(--ink);
-  font: 14.5px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 400 13.5px/1.55 var(--font-ui);
+  /* Every figure lines up in its column — dates, points, scores — so tabular
+     digits are the default rather than something each number has to ask for. */
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -105,26 +142,26 @@ body {
 h1, h2, h3, h4 { line-height: 1.25; text-wrap: balance; }
 
 code {
-  font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
-  background: var(--panel-2); border: 1px solid var(--line);
-  border-radius: var(--r-1); padding: 1px 5px;
+  font: 12px/1.4 var(--font-mono);
+  background: var(--paper); border: 1px solid var(--rule);
+  border-radius: var(--r-panel); padding: 1px 5px;
 }
 
 /* One focus ring for the whole app, on the things that can actually take one. */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--link);
   outline-offset: 2px;
 }
 
 /* Slim scrollbars, so a panel that scrolls says so without a slab of chrome. */
-* { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+* { scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent; }
 ::-webkit-scrollbar { width: 11px; height: 11px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--line-2); border-radius: var(--pill);
+  background: var(--rule-strong); border-radius: 0;
   border: 3px solid transparent; background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-3); background-clip: content-box; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -135,52 +172,62 @@ code {
 
 /* ------------------------------------------------------------------- shell */
 
-.app { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+.app { display: grid; grid-template-columns: 216px minmax(0, 1fr); min-height: 100vh; }
 
 .sidebar {
   position: sticky; top: 0; align-self: start; min-width: 0;
   height: 100vh; display: flex; flex-direction: column;
-  padding: 18px 12px; gap: 20px;
-  background: var(--panel); border-right: 1px solid var(--line);
+  padding: 18px 0 14px;
+  background: var(--sunk); border-right: 1px solid var(--rule);
 }
 
-.brand { display: flex; align-items: center; gap: 10px; padding: 0 6px; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 9px; padding: 0 16px 18px; min-width: 0; }
+/* Three ruled lines on an ink square — a page of notes — drawn in CSS so there
+   is no asset to ship, and it inverts with the theme for free. */
 .brand-mark {
-  width: 28px; height: 28px; border-radius: var(--r-2); flex: none;
-  background: linear-gradient(140deg, var(--s0), var(--s6));
-  box-shadow: var(--shadow-1);
+  width: 22px; height: 22px; flex: none;
+  background:
+    linear-gradient(var(--paper), var(--paper)) 4px 4px / 14px 2px no-repeat,
+    linear-gradient(var(--paper), var(--paper)) 4px 10px / 9px 2px no-repeat,
+    linear-gradient(var(--paper), var(--paper)) 4px 16px / 12px 2px no-repeat,
+    var(--ink);
 }
-.brand > div { min-width: 0; }
 .brand-name {
-  font-weight: 650; font-size: 14.5px; letter-spacing: -0.01em;
+  min-width: 0; font: 400 19px/1 var(--font-display);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.brand-demo {
+  flex: none; font: 500 8.5px/1 var(--font-mono); letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-3);
+  border: 1px solid var(--rule-strong); padding: 3px 4px;
 }
 
 /* A wrapper that is invisible to the column layout, and becomes the scrolling
    strip when the sidebar lies down. */
 .nav-strip { display: contents; }
-.sidebar nav { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sidebar nav { display: flex; flex-direction: column; min-width: 0; }
 .nav {
   display: flex; align-items: center; gap: 9px;
-  padding: 7px 10px; border-radius: var(--r-2); min-width: 0;
-  font-size: 13.5px; color: var(--ink-2); text-decoration: none;
-  transition: background .12s, color .12s;
+  padding: 8px 16px; min-width: 0;
+  font: 400 13px/1 var(--font-ui); color: var(--ink-2); text-decoration: none;
 }
 .nav:hover { background: var(--hover); color: var(--ink); }
-.nav.on { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
-.nav .pill {
+.nav.on {
+  background: var(--paper); color: var(--ink); font-weight: 500;
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+.nav-count {
   margin-left: auto; flex: none;
-  font-size: 11px; font-variant-numeric: tabular-nums; line-height: 17px;
-  color: var(--muted); background: var(--panel-2);
-  border: 1px solid var(--line); border-radius: var(--pill); padding: 0 6px;
+  font: 400 10.5px/1 var(--font-mono); color: var(--ink-3);
 }
-.nav.on .pill { color: var(--accent); border-color: currentColor; background: transparent; }
+.nav .count-pill { margin-left: auto; }
 
-.nav-group { gap: 2px; }
 .nav-title {
-  font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
-  color: var(--muted); font-weight: 650; padding: 0 10px 6px;
+  font: 500 8.5px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-3); padding: 18px 16px 7px;
 }
+/* Course codes are mostly digits, so they are set in mono and line up. */
+.nav-course { padding-block: 6px; font: 400 12.5px/1 var(--font-mono); }
 /* A course name is whatever the registrar made it, so it gets one line and an
    ellipsis rather than a chance to reflow the whole sidebar. */
 .nav-course-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -188,18 +235,23 @@ code {
 .nav-foot { margin-top: auto; }
 
 .side-foot {
-  display: flex; align-items: center; gap: 8px;
-  padding: 12px 10px 0; margin-top: 12px; border-top: 1px solid var(--line);
-  font-size: 12.5px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  margin: 10px 16px 0; padding-top: 10px; border-top: 1px solid var(--rule);
 }
-/* The name takes the room and gives it back: a long one ellipses rather than
-   pushing the button it shares the line with off the edge. */
+/* A long name ellipses rather than widening the column. */
 .side-who {
-  flex: 1; min-width: 0; font-weight: 550; color: var(--ink-2);
+  max-width: 100%; font: 500 12px/1.3 var(--font-ui); color: var(--ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.side-out { flex: none; padding: 4px 9px; min-height: 27px; font-size: 12px; }
-a.link { color: var(--accent); text-decoration: none; }
+/* The way out is a line under the name, not a control competing with the nav. */
+button.side-out {
+  border: 0; background: transparent; padding: 0; min-height: 0;
+  font: 400 11px/1.4 var(--font-ui); color: var(--ink-3);
+}
+button.side-out:hover:not(:disabled) {
+  background: transparent; color: var(--ink); text-decoration: underline;
+}
+a.link { color: var(--link); text-decoration: none; }
 a.link:hover { text-decoration: underline; }
 
 .main { min-width: 0; padding: 22px 26px 88px; max-width: 1560px; }
@@ -207,14 +259,14 @@ a.link:hover { text-decoration: underline; }
 /* Every screen opens with the same header block: title, one line of context,
    and whatever actions belong to that screen, pinned right. */
 .topbar, .page-head {
-  display: flex; align-items: flex-start; gap: 10px 12px;
-  margin-bottom: 20px; flex-wrap: wrap;
+  display: flex; align-items: flex-end; gap: 10px 12px;
+  margin-bottom: 16px; flex-wrap: wrap;
 }
 .topbar > div:first-child, .page-head > div:first-child { min-width: 0; }
-.topbar h1, .page-head h1 {
-  font-size: 22px; margin: 0 0 3px; letter-spacing: -0.02em; font-weight: 650;
-}
-.topbar p, .page-head p { margin: 0; }
+.topbar h1, .page-head h1 { margin: 0; font: 400 32px/1 var(--font-display); }
+.topbar p, .page-head p { margin: 7px 0 0; }
+/* The overview's context line — the date and the sync — read as figures. */
+.stamp { font: 400 11.5px/1 var(--font-mono); color: var(--ink-3); text-transform: uppercase; }
 .spacer { flex: 1 1 auto; min-width: 0; }
 
 /* A bare section: the same head as a panel, but the content sits on the page. */
@@ -224,35 +276,34 @@ a.link:hover { text-decoration: underline; }
 
 /* ----------------------------------------------------------------- buttons */
 
+/* A button is a hairline box that darkens to ink on hover; it never fills. */
 button, .btn {
-  font: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  min-height: 33px; white-space: nowrap;
-  background: var(--panel); color: var(--ink); text-decoration: none;
-  border: 1px solid var(--line-2); border-radius: var(--r-2); padding: 6px 12px;
-  transition: background .12s, border-color .12s, color .12s;
+  min-height: 32px; white-space: nowrap;
+  background: transparent; color: var(--ink-2); text-decoration: none;
+  border: 1px solid var(--rule-strong); border-radius: var(--r-panel); padding: 6px 13px;
 }
 button:hover:not(:disabled), .btn:hover {
-  background: var(--hover); border-color: var(--line-2); color: var(--ink);
+  background: transparent; border-color: var(--ink); color: var(--ink);
 }
 button:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: default; }
 
 button.primary, .btn.primary {
-  background: var(--accent); border-color: var(--accent); color: #fff;
+  background: var(--ink); border-color: var(--ink); color: var(--on-ink);
 }
 button.primary:hover:not(:disabled), .btn.primary:hover {
-  background: color-mix(in srgb, var(--accent) 88%, #000);
-  border-color: color-mix(in srgb, var(--accent) 88%, #000); color: #fff;
+  background: var(--ink-hover); border-color: var(--ink-hover); color: var(--on-ink);
 }
 
 /* Destructive, and only ever the second press: it appears once an action has
    been armed, so it is loud on purpose. */
 button.danger {
-  background: var(--bad); border-color: var(--bad); color: #fff;
+  background: var(--danger); border-color: var(--danger); color: var(--panel);
 }
 button.danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--bad) 86%, #000);
-  border-color: color-mix(in srgb, var(--bad) 86%, #000); color: #fff;
+  background: color-mix(in srgb, var(--danger) 86%, #000);
+  border-color: color-mix(in srgb, var(--danger) 86%, #000); color: var(--panel);
 }
 
 /* The way back to Blackboard itself. Quiet by default — it is an escape hatch,
@@ -260,10 +311,10 @@ button.danger:hover:not(:disabled) {
    in. As a `.btn` it takes the button shape instead. */
 .bblink {
   display: inline-flex; align-items: center; gap: 4px;
-  color: var(--muted); font-size: 12px; font-weight: 500;
+  color: var(--ink-3); font-size: 12px; font-weight: 500;
   text-decoration: none; white-space: nowrap; flex: none;
 }
-.bblink:hover { color: var(--accent); }
+.bblink:hover { color: var(--link); }
 .bblink .ext { font-size: 11px; opacity: .8; }
 .btn.bblink { color: var(--ink-2); font-size: 13px; }
 .btn.bblink:hover { color: var(--ink); }
@@ -271,11 +322,31 @@ button.danger:hover:not(:disabled) {
 /* A text button: used inline in prose, so it carries no box of its own. */
 button.linkish {
   border: 0; background: transparent; padding: 0; min-height: 0;
-  color: var(--accent); font-size: 12.5px; font-weight: 500;
+  color: var(--link); font-size: 12.5px; font-weight: 500;
 }
 button.linkish:hover:not(:disabled) {
-  background: transparent; color: var(--accent); text-decoration: underline;
+  background: transparent; color: var(--link); text-decoration: underline;
 }
+
+/* A button whose label changes while it works. Every label is laid out in the
+   same cell and all but one hidden, so it is as wide busy as it is at rest and
+   the buttons beside it never shift. */
+.hold { display: inline-grid; }
+.hold > span {
+  grid-area: 1 / 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+}
+.hold > [aria-hidden="true"] { visibility: hidden; }
+
+/* Buttons that belong together share their borders: ‹ Today ›. */
+.joined { display: flex; flex: none; }
+.joined > button {
+  min-height: 0; padding: 6px 9px; border-radius: 0;
+  font: 500 11px/1 var(--font-mono); text-transform: uppercase;
+}
+.joined > button + button { margin-left: -1px; }
+/* Raised so the hovered or focused button's border is not under its neighbour's. */
+.joined > button:hover, .joined > button:focus-visible { position: relative; z-index: 1; }
 
 /* ------------------------------------------------------------------ fields */
 
@@ -289,17 +360,13 @@ input:where(:not([type="checkbox"]):not([type="radio"]):not([type="file"])),
 select,
 textarea {
   font: inherit; font-size: 13px; font-weight: 400; width: 100%; min-height: 33px;
-  padding: 6px 10px; border-radius: var(--r-2);
-  border: 1px solid var(--line-2); background: var(--panel); color: var(--ink);
-  transition: border-color .12s, box-shadow .12s;
+  padding: 6px 10px; border-radius: var(--r-input);
+  border: 1px solid var(--rule-strong); background: var(--panel); color: var(--ink);
 }
 input:hover:not(:disabled):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-select:hover:not(:disabled) { border-color: var(--muted); }
-input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: none; border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-input::placeholder { color: var(--muted); }
+select:hover:not(:disabled) { border-color: var(--ink-3); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { border-color: var(--link); }
+input::placeholder { color: var(--ink-3); }
 select {
   padding-right: 30px; cursor: pointer; appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
@@ -312,7 +379,7 @@ input[type="number"] { -moz-appearance: textfield; }
 
 .field {
   display: flex; flex-direction: column; gap: 6px;
-  font-size: 12px; font-weight: 650; color: var(--muted);
+  font-size: 12px; font-weight: 650; color: var(--ink-3);
   letter-spacing: .01em; min-width: 0;
 }
 .field > span { display: block; }
@@ -321,9 +388,9 @@ input[type="number"] { -moz-appearance: textfield; }
 /* ------------------------------------------------------------------ panels */
 
 .panel {
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r-4); padding: 16px 18px; margin-bottom: 16px;
-  box-shadow: var(--shadow-1); position: relative;
+  background: var(--panel); border: 1px solid var(--rule);
+  border-radius: var(--r-panel); padding: 16px 18px; margin-bottom: 16px;
+  position: relative;
 }
 .panel:last-child { margin-bottom: 0; }
 
@@ -332,8 +399,20 @@ input[type="number"] { -moz-appearance: textfield; }
   margin-bottom: 14px; flex-wrap: wrap;
 }
 .panel-head h2, .panel > h2, .section > .panel-head h2 {
-  font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em;
-  color: var(--muted); margin: 0; font-weight: 650; white-space: nowrap;
+  margin: 0; font: 500 10px/1.2 var(--font-mono); letter-spacing: .11em;
+  text-transform: uppercase; color: var(--ink-3); white-space: nowrap;
+}
+
+/* A heading ruled straight across the page instead of a box around what it
+   heads: the calendar and the deadline rail sit on the paper, not in cards. */
+.sheet-head {
+  display: flex; align-items: baseline; gap: 10px; min-width: 0;
+  padding-bottom: 9px; border-bottom: 2px solid var(--ink);
+}
+.sheet-head h2 { margin: 0; font: 400 23px/1 var(--font-display); white-space: nowrap; }
+.sheet-count {
+  font: 400 11px/1 var(--font-mono); color: var(--ink-3);
+  text-transform: uppercase; white-space: nowrap;
 }
 .panel-head h3 { font-size: 14.5px; margin: 0; font-weight: 650; }
 /* The head's own buttons are quieter than the page's — they act on this panel. */
@@ -352,17 +431,18 @@ input[type="number"] { -moz-appearance: textfield; }
 .split { margin-bottom: 16px; }
 .split:last-child { margin-bottom: 0; }
 
+/* Micro caps: the name of a figure or a section, set small and tracked out. */
 .label {
-  font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em;
-  color: var(--muted); font-weight: 650;
+  font: 500 9px/1.2 var(--font-mono); letter-spacing: .11em;
+  text-transform: uppercase; color: var(--ink-3);
 }
 .note { font-size: 12.5px; color: var(--ink-2); }
-.note.dim, .dim { color: var(--muted); }
+.note.dim, .dim { color: var(--ink-3); }
 /* Prose gets a measure — a paragraph 1500px wide is not a paragraph. */
 .prose { max-width: 78ch; }
 
 /* The middot between two facts on one line. */
-.sep { color: var(--muted); opacity: .6; margin-inline: .4em; }
+.sep { color: var(--ink-3); opacity: .6; margin-inline: .4em; }
 
 /* A screen's own actions, kept together so they wrap as a group. */
 .actions { flex: none; gap: 8px; flex-wrap: nowrap; }
@@ -370,21 +450,25 @@ input[type="number"] { -moz-appearance: textfield; }
 /* An aside under something it qualifies — a footnote, not a new paragraph. */
 .foot-note { margin: 8px 0 0; }
 
-.err { color: var(--bad); font-size: 13px; margin: 8px 0 0; }
+.err { color: var(--danger); font-size: 13px; margin: 8px 0 0; }
 /* A second line under an error is a next step, not more of the sentence. */
 .err .note { display: block; margin-top: 3px; }
+/* All status is inline — there are no toasts — so a failure sits where the
+   thing that failed would have been, with the way to try again beside it. */
 .err.banner {
-  background: color-mix(in srgb, var(--bad) 9%, transparent);
-  border: 1px solid color-mix(in srgb, var(--bad) 45%, transparent);
-  border-radius: var(--r-2); padding: 9px 12px; margin: 0 0 14px;
+  display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--danger); background: var(--tone-od-bg);
+  border: 1px solid var(--danger); border-radius: var(--r-panel);
+  padding: 11px 13px; margin: 0 0 16px;
 }
-.empty { color: var(--muted); font-size: 13.5px; margin: 0; padding: 4px 0; }
+.err.banner .linkish { margin-left: auto; }
+.empty { color: var(--ink-3); font-size: 13px; margin: 0; padding: 4px 0; }
 
 .spin {
-  display: inline-block; width: 12px; height: 12px; flex: none;
+  display: inline-block; width: 10px; height: 10px; flex: none;
   border: 2px solid currentColor; border-right-color: transparent;
-  border-radius: 50%; opacity: .6; vertical-align: -1px;
-  animation: sp .7s linear infinite;
+  border-radius: 50%; opacity: .7; vertical-align: -1px;
+  animation: sp .62s linear infinite;
 }
 @keyframes sp { to { transform: rotate(360deg); } }
 
@@ -392,51 +476,62 @@ input[type="number"] { -moz-appearance: textfield; }
 
 /* The identity swatch that rides beside every course name. */
 .dot {
-  width: 9px; height: 9px; border-radius: 3px; flex: none;
-  background: var(--series, var(--muted));
+  width: 9px; height: 9px; flex: none;
+  background: var(--series, var(--ink-3));
 }
 
 /* A course's name, said quietly beside something of its own. */
 .course {
-  font-size: 11px; color: var(--muted); border: 1px solid var(--line-2);
-  padding: 1px 8px; border-radius: var(--pill); white-space: nowrap;
+  font: 400 11px/1.5 var(--font-mono); color: var(--ink-3);
+  border: 1px solid var(--rule); padding: 0 6px; white-space: nowrap;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis;
 }
 
 /* A one-word status. Neutral by default; the modifiers carry the meaning. */
 .flag {
-  font-size: 11.5px; color: var(--muted); white-space: nowrap;
-  border: 1px solid var(--line-2); border-radius: var(--pill); padding: 1px 9px;
+  font: 400 10.5px/1.4 var(--font-mono); white-space: nowrap; padding: 1px 5px;
+  color: var(--tone-later-fg); background: var(--tone-later-bg);
+  border: 1px solid var(--tone-later-bd);
 }
-.flag.ok {
-  color: var(--ok); border-color: color-mix(in srgb, var(--ok) 42%, transparent);
-  background: color-mix(in srgb, var(--ok) 9%, transparent);
-}
-.flag.warn {
-  color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent);
-  background: color-mix(in srgb, var(--warn) 10%, transparent);
-}
+.flag.ok { color: var(--tone-ok-fg); background: var(--tone-ok-bg); border-color: var(--tone-ok-bd); }
+.flag.warn { color: var(--tone-soon-fg); background: var(--tone-soon-bg); border-color: var(--tone-soon-bd); }
 
 .badge-new {
-  font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em;
-  background: var(--accent); color: #fff; padding: 2px 6px; border-radius: var(--r-1);
-  white-space: nowrap; line-height: 1.3;
+  flex: none; font: 500 8.5px/1 var(--font-mono); letter-spacing: .08em;
+  text-transform: uppercase; white-space: nowrap;
+  background: var(--ink); color: var(--on-ink); padding: 2px 4px;
 }
+
+/* A count that is waiting to be read, as opposed to one that is only a fact. */
+.count-pill {
+  flex: none; font: 500 10px/1 var(--font-mono);
+  background: var(--ink); color: var(--on-ink); padding: 3px 5px;
+}
+
+/* How far off a deadline is, in the tone of how soon that is. */
+.when {
+  flex: none; white-space: nowrap;
+  font: 500 10.5px/1 var(--font-mono); padding: 4px 6px;
+  color: var(--tone-later-fg); background: var(--tone-later-bg);
+  border: 1px solid var(--tone-later-bd);
+}
+.when.soon { color: var(--tone-soon-fg); background: var(--tone-soon-bg); border-color: var(--tone-soon-bd); }
+.when.bad { color: var(--tone-od-fg); background: var(--tone-od-bg); border-color: var(--tone-od-bd); }
 
 .warn-box {
   border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
   background: color-mix(in srgb, var(--warn) 10%, transparent);
-  border-radius: var(--r-2); padding: 11px 13px; font-size: 13px; margin: 12px 0 0;
+  border-radius: var(--r-panel); padding: 11px 13px; font-size: 13px; margin: 12px 0 0;
 }
 .warn-box strong { color: var(--warn); }
 .warn-text { color: var(--warn); font-weight: 650; }
 
 /* A meter: the unfilled track is a lighter step of the fill's own hue. */
 .bar {
-  height: 6px; background: var(--accent-soft); border-radius: var(--pill);
+  height: 4px; background: var(--rule);
   overflow: hidden; width: 120px; flex: none;
 }
-.bar > i { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+.bar > i { display: block; height: 100%; background: var(--ink-2); }
 
 /* --------------------------------------------------------------- sign in */
 
@@ -444,7 +539,6 @@ input[type="number"] { -moz-appearance: textfield; }
   width: min(420px, 100%);
   display: flex; flex-direction: column; gap: 14px;
   padding: 26px 26px 24px; margin: 0;
-  box-shadow: var(--shadow-2);
 }
 .login-brand { display: flex; align-items: center; gap: 11px; }
 .login-panel h2 {
@@ -477,142 +571,128 @@ input[type="number"] { -moz-appearance: textfield; }
 /* Sits under the demo button and explains it, so it reads as that button's caption. */
 .login-panel .demo-note { text-align: center; margin-top: -8px; }
 
-/* ---------------------------------------------------------- stats / figures */
+/* --------------------------------------------------------------- ink band */
 
-/* The deadline card is wider than a figure needs, because it carries a title
-   and a date as well. The ratio is what stops its longest line from leaving a
-   hole across the right of the card while still giving the date one line. */
-.stats {
-  display: grid; gap: 14px; margin-bottom: 16px;
-  grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr));
+/* The countdown and the three figures, set in reverse across the dashboard. It
+   is the one heavy thing on the screen, so it is the first thing read. */
+.band {
+  display: flex; align-items: stretch; margin-bottom: 16px;
+  background: var(--ink); color: var(--on-ink);
+}
+.band .label { color: var(--on-ink-3); white-space: nowrap; }
+
+.band-hero {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 20px;
+  padding: 16px 20px 17px;
+}
+.band-clock { flex: none; }
+.band-num {
+  display: flex; align-items: baseline; gap: 8px; margin-top: 7px;
+  font: 600 50px/.9 var(--font-mono); letter-spacing: -2.5px;
+}
+.band-num span {
+  font: 400 15px/1 var(--font-ui); letter-spacing: 0;
+  color: var(--on-ink-2); white-space: nowrap;
+}
+.band.late .band-num { color: var(--danger); }
+.band-detail { min-width: 0; padding-left: 20px; border-left: 1px solid var(--on-ink-rule); }
+.band-title {
+  font: 600 15.5px/1.3 var(--font-ui);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.band-meta {
+  display: flex; align-items: center; gap: 7px; min-width: 0; margin-top: 7px;
+  font: 400 11px/1.3 var(--font-mono); color: var(--on-ink-2);
+}
+.band-meta > span {
+  text-transform: uppercase;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-.hero, .tile {
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r-4); padding: 14px 16px; box-shadow: var(--shadow-1);
-  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+.band-stats { flex: none; display: flex; }
+.stat { min-width: 132px; padding: 16px 20px 17px; border-left: 1px solid var(--on-ink-rule); }
+.stat-num {
+  display: flex; align-items: baseline; gap: 3px; margin: 8px 0 5px;
+  font: 600 28px/1 var(--font-mono);
 }
-/* The accent rides on the inside so the card's own edge stays the same width as
-   the three beside it and the row keeps one silhouette. */
-.hero { box-shadow: inset 3px 0 0 var(--accent), var(--shadow-1); }
-.hero.late { box-shadow: inset 3px 0 0 var(--bad), var(--shadow-1); }
-
-/* Every card ends on its caption, pinned to the floor, so the row reads on two
-   lines: the figures under the labels, the captions along the bottom. */
-.hero-body { flex: 1; display: flex; flex-direction: column;
-             justify-content: space-between; min-width: 0; }
-.hero-detail { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.tile { justify-content: space-between; }
-
-/* A label is a fixed caption, not prose: it gets one line, so the figures below
-   sit on the same line across the row however long the words are. */
-.stats .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-.hero-num {
-  font-size: 42px; line-height: 1.1; font-weight: 650; letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums; margin: 4px 0 6px;
+.stat-num small { font: 400 13px/1 var(--font-mono); color: var(--on-ink-3); }
+/* A caption, not prose: one line, so the three figures keep one silhouette. */
+.stat-note {
+  max-width: 118px; font: 400 10.5px/1.35 var(--font-ui); color: var(--on-ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.hero-unit {
-  font-size: 13.5px; font-weight: 500; color: var(--muted);
-  letter-spacing: 0; margin-left: 9px;
-}
-.hero.late .hero-num { color: var(--bad); }
-.hero-what { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.hero-what b { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-.tile-num {
-  font-size: 32px; font-weight: 650; letter-spacing: -0.025em;
-  font-variant-numeric: tabular-nums; line-height: 1.2; margin: 4px 0 6px;
-}
-.tile.bad .tile-num { color: var(--bad); }
-.tile.ok .tile-num { color: var(--ok); }
+.stat.bad .stat-num { color: var(--danger); }
+.stat.ok .stat-num { color: var(--ok); }
 
 /* ---------------------------------------------------------------- calendar */
 
-.cal-nav { display: flex; gap: 4px; }
-.cal-nav button { padding: 4px 10px; min-height: 30px; }
+.cal { min-width: 0; }
 
-.cal-title { font-size: 15.5px; margin: 0 0 10px; letter-spacing: -0.01em; color: var(--ink-2); }
-.cal-title strong { font-weight: 650; color: var(--ink); }
+.cal-dow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); padding-top: 8px; }
+.cal-dow > .label { padding: 0 0 8px 3px; }
 
+/* The grid draws the top and left rules and each day its right and bottom, so
+   no line is ever drawn twice and none is thicker than a hairline. */
 .cal-grid {
   display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-auto-rows: minmax(88px, auto);
-  gap: 1px; background: var(--line);
-  border: 1px solid var(--line); border-radius: var(--r-3); overflow: hidden;
-}
-.cal-wd {
-  background: var(--panel-2); color: var(--muted);
-  font-size: 10.5px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase;
-  padding: 7px 4px; text-align: center;
+  grid-auto-rows: minmax(98px, auto);
+  border-top: 1px solid var(--rule); border-left: 1px solid var(--rule);
+  background: var(--panel);
 }
 .cal-cell {
-  background: var(--panel); padding: 5px 5px 6px; min-width: 0;
-  display: flex; flex-direction: column; gap: 2px;
-  transition: background .1s;
+  min-width: 0; padding: 6px 7px 7px;
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--panel);
+  border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
 }
 .cal-cell.has { cursor: pointer; }
-.cal-cell.has:hover { background: var(--hover); }
-/* A day outside the month recedes, in either theme. */
-.cal-cell.out { background: color-mix(in srgb, var(--panel) 88%, var(--muted)); }
-.cal-cell.out .cal-num { color: var(--muted); opacity: .65; }
-.cal-cell.sel { background: var(--accent-soft); }
+.cal-cell.today, .cal-cell.sel { background: var(--hover); }
+/* A day outside the month sits on the paper behind the grid. */
+.cal-cell.out { background: var(--paper); }
+.cal-cell.out .cal-num { color: var(--ink-4); }
 
 /* A day with work in it is a button, so it has to shed every button default:
    the grid decides its size, and what is inside it is a stack of lines rather
-   than a label on one. */
+   than a label on one. Its right and bottom rules are the cell's own. */
 button.cal-cell {
   font: inherit; color: inherit; text-align: left; white-space: normal;
-  border: 0; border-radius: 0; min-height: 0; width: 100%; height: 100%;
+  border-top: 0; border-left: 0; border-radius: 0;
+  min-height: 0; width: 100%; height: 100%;
   align-items: stretch; justify-content: flex-start;
 }
-button.cal-cell:hover:not(:disabled) { background: var(--hover); }
-button.cal-cell.sel:hover:not(:disabled) { background: var(--accent-soft); }
-/* The grid clips at its rounded corners, so the ring goes inside the cell. */
+button.cal-cell:hover:not(:disabled) { background: var(--hover); border-color: var(--rule); }
+/* The next day along would cover a ring drawn outside, so it goes inside. */
 button.cal-cell:focus-visible { outline-offset: -2px; }
 
-.cal-num {
-  font: inherit; font-size: 12px; font-variant-numeric: tabular-nums;
-  color: var(--ink-2); background: transparent; border: 0;
-  padding: 1px 5px; align-self: flex-start; border-radius: var(--pill);
-  min-width: 22px; min-height: 0; text-align: center; justify-content: center;
-}
-button.cal-num { cursor: pointer; }
-button.cal-num:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
-.cal-cell.today .cal-num,
-.cal-cell.today button.cal-num:hover { background: var(--accent); color: #fff; font-weight: 650; }
+.cal-num { font: 500 12px/1 var(--font-mono); color: var(--ink); }
 
+/* One assignment, ruled in its course's colour rather than dotted: the rules
+   line up down the column where dots scattered. No hover of its own — a chip
+   is a preview of the day, and the day is what highlights and what opens. */
 .chip {
-  border: 0; background: transparent; padding: 1px 4px; border-radius: var(--r-1);
-  display: flex; align-items: center; gap: 5px; width: 100%; flex: none;
-  min-height: 0; line-height: 1.35; font-size: 11.5px; font-weight: 400;
-  color: var(--ink); text-align: left; justify-content: flex-start;
+  display: flex; align-items: center; min-width: 0; flex: none;
+  padding-left: 6px; box-shadow: inset 2px 0 0 var(--series, var(--ink-3));
+  font: 400 10.5px/1.3 var(--font-ui); color: var(--ink-2);
 }
-/* No hover of its own: a chip is a preview of the day, and the day is what
-   highlights and what opens. */
-.chip .dot { width: 7px; height: 7px; border-radius: 2px; }
 .chip-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chip.past { opacity: .5; }
-.chip.past .chip-t { text-decoration: line-through; }
+.chip.past { opacity: .45; }
 
-.cal-more { font-size: 11px; color: var(--muted); padding-left: 7px; }
-.cal-count { display: none; font-size: 11px; color: var(--ink-2); padding-left: 3px; }
+.cal-more { margin-top: auto; font: 400 10px/1 var(--font-mono); color: var(--ink-3); }
+.cal-count { display: none; font: 400 11px/1 var(--font-mono); color: var(--ink-2); }
 
-.legend {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px;
-  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
+.legend { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 11px; }
+button.lg {
+  gap: 6px; max-width: 100%; min-height: 0; padding: 5px 8px; border-radius: 0;
+  font: 400 11px/1 var(--font-mono); color: var(--ink-2);
+  border-color: var(--rule);
 }
-.lg {
-  display: inline-flex; align-items: center; gap: 7px; max-width: 100%;
-  font-size: 12px; font-weight: 400; color: var(--ink-2); min-height: 26px;
-  background: transparent; border: 1px solid transparent;
-  border-radius: var(--pill); padding: 2px 10px 2px 8px;
-}
-.lg:hover:not(:disabled) { background: var(--hover); border-color: var(--line); color: var(--ink); }
+button.lg:hover:not(:disabled), button.lg.on { border-color: var(--ink); color: var(--ink); }
+.lg .dot { width: 7px; height: 7px; }
 .lg-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lg.on {
-  border-color: var(--series); color: var(--ink); font-weight: 650;
-  background: color-mix(in srgb, var(--series) 10%, transparent);
+/* Clearing the filter is a quieter act than choosing one. */
+.legend .linkish {
+  margin-left: 5px; font: 400 11px/1 var(--font-mono);
+  text-transform: uppercase; color: var(--ink-3);
 }
 
 /* ------------------------------------------------------------- record rows */
@@ -624,12 +704,12 @@ button.cal-num:hover:not(:disabled) { background: var(--hover); color: var(--ink
   display: flex; width: 100%; text-align: left; justify-content: flex-start;
   white-space: normal; font-weight: 400;
   border: 0; border-radius: 0; background: transparent;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--rule);
   margin-inline: -18px; padding-inline: 18px; width: calc(100% + 36px);
   min-height: 0;
 }
 .due:hover:not(:disabled), .detail:hover:not(:disabled), .set-item-head:hover:not(:disabled) {
-  background: var(--hover); border-color: var(--line);
+  background: var(--hover); border-color: var(--rule);
 }
 .due { gap: 11px; padding-block: 11px; align-items: flex-start; }
 /* A column flex row still inherits align-items:center from `button`, which
@@ -645,23 +725,38 @@ button.cal-num:hover:not(:disabled) { background: var(--hover); color: var(--ink
 }
 .due-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .due-top b { font-weight: 650; }
-.due .when {
-  flex: none; font-size: 12.5px; font-variant-numeric: tabular-nums;
-  text-align: right; padding-top: 1px; color: var(--ink-2);
-}
-.when.soon { color: var(--warn); font-weight: 650; }
-.when.bad { color: var(--bad); font-weight: 650; }
-.when.later { color: var(--muted); }
 
 /* "See all" at the foot of a preview list — a row, not a floating button. */
 .due-more {
   width: calc(100% + 36px); margin: 0 -18px -16px; justify-content: center;
   white-space: normal;
-  border: 0; border-top: 1px solid var(--line); border-radius: 0;
-  background: transparent; color: var(--accent); font-weight: 500;
+  border: 0; border-top: 1px solid var(--rule); border-radius: 0;
+  background: transparent; color: var(--link); font-weight: 500;
   padding: 11px 18px;
 }
-.due-more:hover:not(:disabled) { background: var(--hover); color: var(--accent); }
+.due-more:hover:not(:disabled) { background: var(--hover); color: var(--link); }
+
+/* A deadline on the page rather than in a panel: ruled on the left in its
+   course's colour, divided from the next by a softer hairline, never boxed. */
+.entry {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 0; text-align: left; justify-content: flex-start;
+  white-space: normal; font-weight: 400; color: var(--ink);
+  background: transparent; border: 0; border-radius: var(--r-row);
+  border-bottom: 1px solid var(--rule-soft);
+  box-shadow: inset 3px 0 0 var(--series, var(--rule));
+  padding: 10px 8px 11px 12px;
+}
+.entry:hover:not(:disabled) { background: var(--hover); border-color: var(--rule-soft); color: var(--ink); }
+/* These rows scroll in their own container, which would cut a ring drawn outside. */
+.entry:focus-visible { outline-offset: -2px; }
+.entry-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.entry-title { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.entry-title b {
+  min-width: 0; font: 500 13.5px/1.25 var(--font-ui);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.entry-meta { font: 400 10.5px/1.3 var(--font-mono); color: var(--ink-3); }
 
 /* ----------------------------------------------------------- course cards */
 
@@ -671,14 +766,10 @@ button.cal-num:hover:not(:disabled) { background: var(--hover); color: var(--ink
 .ccard {
   display: flex; flex-direction: column; gap: 6px;
   min-height: 170px; padding: 16px 17px; text-decoration: none; color: inherit;
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r-4); box-shadow: var(--shadow-1);
-  transition: border-color .12s, box-shadow .12s, transform .12s;
+  background: var(--panel); border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
 }
-.ccard:hover {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
-  box-shadow: var(--shadow-2); transform: translateY(-1px);
-}
+.ccard:hover { border-color: var(--ink); }
 
 .ccard-head { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
 .ccard-head .dot { margin-top: 6px; }
@@ -688,66 +779,64 @@ button.cal-num:hover:not(:disabled) { background: var(--hover); color: var(--ink
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ccard .code {
-  color: var(--muted); font-size: 12px;
+  color: var(--ink-3); font-size: 12px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ccard-grade { margin: 8px 0 0; min-height: 38px; display: flex; align-items: flex-end; }
 .ccard-meta { margin-bottom: 2px; }
 .ccard-foot {
-  margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line);
+  margin-top: auto; padding-top: 12px; border-top: 1px solid var(--rule);
   display: flex; align-items: center; gap: 8px; min-height: 40px;
 }
 .ccard-foot .go {
-  margin-left: auto; color: var(--muted); font-size: 16px; line-height: 1;
-  transition: transform .12s, color .12s;
+  margin-left: auto; color: var(--ink-3); font-size: 16px; line-height: 1;
 }
-.ccard:hover .go { color: var(--accent); transform: translateX(2px); }
+.ccard:hover .go { color: var(--link); transform: translateX(2px); }
 
 .big {
   font-size: 30px; font-weight: 650; letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums; line-height: 1.15;
 }
-.big .letter { font-size: 16px; color: var(--muted); margin-left: 7px; font-weight: 500; }
+.big .letter { font-size: 16px; color: var(--ink-3); margin-left: 7px; font-weight: 500; }
 /* No grade yet: a full-size em dash reads as a stray rule, so it is said. */
-.big.none { font-size: 15px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.big.none { font-size: 15px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
 
 /* -------------------------------------------------------------- course page */
 
 .back {
   display: inline-flex; align-items: center; gap: 5px;
   margin-bottom: 14px; font-size: 13px;
-  color: var(--muted); text-decoration: none;
+  color: var(--ink-3); text-decoration: none;
 }
-.back:hover { color: var(--accent); }
+.back:hover { color: var(--link); }
 
 .course-head {
   display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap;
   margin-bottom: 18px;
 }
 .course-head > div:first-child { min-width: 0; }
-.course-head h1 { margin: 0 0 3px; font-size: 22px; font-weight: 650; letter-spacing: -0.02em; }
+.course-head h1 { margin: 0 0 6px; font: 400 32px/1 var(--font-display); }
 .course-head p { margin: 0; }
 
 /* The link belongs to the name above it, so it is spaced as the last line of
    that block rather than as a control: no box, no hover fill, and an arrow that
    steps out on hover the way a link off the page should. */
 .course-bblink {
-  margin-top: 9px; padding: 3px 9px 3px 8px; border-radius: var(--pill);
-  border: 1px solid var(--line-2); background: var(--panel);
+  margin-top: 9px; padding: 3px 9px 3px 8px; border-radius: 0;
+  border: 1px solid var(--rule-strong); background: var(--panel);
   color: var(--ink-2); font-size: 12px; font-weight: 550;
 }
 .course-bblink:hover {
-  color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2));
-  background: var(--accent-soft);
+  color: var(--link); border-color: color-mix(in srgb, var(--link) 45%, var(--rule-strong));
+  background: var(--hover);
 }
-.course-bblink .ext { transition: transform .12s; }
 .course-bblink:hover .ext { transform: translate(1px, -1px); }
 /* The standing is a figure, so it sits in a figure's box rather than floating
    in the whitespace above the tabs. */
 .course-score {
   text-align: right; flex: none; padding: 9px 16px;
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r-3); box-shadow: var(--shadow-1);
+  background: var(--panel); border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
 }
 .course-score .label { display: block; margin-bottom: 1px; }
 .course-score .note { margin-top: 2px; }
@@ -761,36 +850,36 @@ button.cal-num:hover:not(:disabled) { background: var(--hover); color: var(--ink
 
 .tabbar { display: flex; align-items: center; gap: 10px 14px; margin-bottom: 16px; flex-wrap: wrap; }
 .tab-count {
-  font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted);
-  background: var(--panel-2); border: 1px solid var(--line);
-  border-radius: var(--pill); padding: 0 6px; margin-left: 3px; line-height: 16px;
+  font-size: 11px; font-variant-numeric: tabular-nums; color: var(--ink-3);
+  background: var(--paper); border: 1px solid var(--rule);
+  border-radius: 0; padding: 0 6px; margin-left: 3px; line-height: 16px;
 }
-.seg button.on .tab-count { color: var(--accent); border-color: currentColor; background: transparent; }
+.seg button.on .tab-count { color: var(--on-ink); border-color: currentColor; background: transparent; }
 
 /* Key/value pairs that describe a course without needing a figure each. */
 .facts { margin: 0; display: flex; flex-direction: column; gap: 11px; }
 .facts > div { display: flex; gap: 14px; align-items: baseline; }
 .facts dt {
   flex: none; width: 138px; font-size: 11px; text-transform: uppercase;
-  letter-spacing: .07em; color: var(--muted); font-weight: 650; line-height: 1.5;
+  letter-spacing: .07em; color: var(--ink-3); font-weight: 650; line-height: 1.5;
 }
 .facts dd { margin: 0; font-size: 13.5px; color: var(--ink); min-width: 0; }
 
 /* Where a course's grade comes from: name, weight, meter, score. */
 .catrow {
   display: flex; align-items: center; gap: 14px; font-size: 13.5px;
-  padding: 8px 0; border-top: 1px solid var(--line);
+  padding: 8px 0; border-top: 1px solid var(--rule);
 }
 .panel-head + .catrow { border-top: 0; }
 .catrow .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .catrow .w {
-  color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12.5px;
+  color: var(--ink-3); font-variant-numeric: tabular-nums; font-size: 12.5px;
   flex: none; width: 52px; text-align: right;
 }
 .catrow .w.score { color: var(--ink); font-weight: 650; }
 
 table.items { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-table.items td { padding: 9px 6px; border-top: 1px solid var(--line); vertical-align: middle; }
+table.items td { padding: 9px 6px; border-top: 1px solid var(--rule); vertical-align: middle; }
 table.items td:first-child { padding-left: 0; }
 table.items td:last-child { padding-right: 0; }
 table.items tr:first-child td { border-top: none; }
@@ -810,8 +899,8 @@ table.items tr:hover td { background: var(--hover); }
 .calc .controls > .field:first-child { flex: 1 1 190px; min-width: 150px; }
 .calc .controls > button { flex: none; }
 .result {
-  border-radius: var(--r-2); padding: 12px 14px; font-size: 13.5px;
-  background: var(--panel-2); border: 1px solid var(--line); color: var(--ink-2);
+  border-radius: var(--r-panel); padding: 12px 14px; font-size: 13.5px;
+  background: var(--paper); border: 1px solid var(--rule); color: var(--ink-2);
 }
 .result .num {
   font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums;
@@ -820,12 +909,12 @@ table.items tr:hover td { background: var(--hover); }
 .result .num .dim { font-size: 14px; font-weight: 400; }
 .result.good { border-color: color-mix(in srgb, var(--ok) 45%, transparent);
                background: color-mix(in srgb, var(--ok) 8%, transparent); }
-.result.bad { border-color: color-mix(in srgb, var(--bad) 45%, transparent);
-              background: color-mix(in srgb, var(--bad) 8%, transparent); }
+.result.bad { border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+              background: color-mix(in srgb, var(--danger) 8%, transparent); }
 
 /* ---------------------------------------------------------- announcements */
 
-.ann { display: flex; gap: 11px; padding: 14px 0; border-top: 1px solid var(--line); }
+.ann { display: flex; gap: 11px; padding: 14px 0; border-top: 1px solid var(--rule); }
 .ann:first-of-type, .panel-head + .ann { border-top: none; padding-top: 2px; }
 .ann .dot { margin-top: 7px; }
 .ann-body { min-width: 0; flex: 1; }
@@ -842,8 +931,8 @@ table.items tr:hover td { background: var(--hover); }
 .scrim.over { z-index: 49; }
 .scrim {
   position: fixed; inset: 0; z-index: 40;
-  background: var(--scrim); backdrop-filter: blur(1.5px);
-  animation: fade .14s ease-out;
+  background: var(--scrim);
+  animation: fade var(--t-fade);
 }
 @keyframes fade { from { opacity: 0; } }
 
@@ -854,16 +943,13 @@ table.items tr:hover td { background: var(--hover); }
   transform: translate(-50%, -50%);
   width: min(480px, calc(100vw - 32px)); max-height: min(72vh, 580px);
   display: flex; flex-direction: column;
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r-4); box-shadow: var(--shadow-3);
-  animation: pop .14s ease-out;
-}
-@keyframes pop {
-  from { opacity: 0; transform: translate(-50%, -48%) scale(.98); }
+  background: var(--panel); border: 1px solid var(--rule);
+  border-radius: var(--r-panel); box-shadow: var(--e-modal);
+  animation: fade var(--t-fade);
 }
 .modal-head {
   display: flex; align-items: center; gap: 10px;
-  padding: 14px 18px; border-bottom: 1px solid var(--line);
+  padding: 14px 18px; border-bottom: 1px solid var(--rule);
 }
 .modal-head h3 { margin: 0; font-size: 15.5px; font-weight: 650; letter-spacing: -0.01em; }
 .modal-body { overflow-y: auto; padding: 6px 18px 14px; }
@@ -875,22 +961,22 @@ table.items tr:hover td { background: var(--hover); }
 .ann-modal .modal-body { padding-bottom: 4px; }
 .modal-foot {
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 18px 12px; border-top: 1px solid var(--line);
+  padding: 10px 18px 12px; border-top: 1px solid var(--rule);
 }
 
 .drawer {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 41;
   width: min(580px, 100vw);
   display: flex; flex-direction: column;
-  background: var(--panel); border-left: 1px solid var(--line);
-  box-shadow: var(--shadow-3);
-  animation: slide .16s ease-out;
+  background: var(--panel); border-left: 1px solid var(--rule);
+  box-shadow: var(--e-overlay);
+  animation: slide var(--t-slide);
 }
-@keyframes slide { from { transform: translateX(28px); opacity: .4; } }
+@keyframes slide { from { transform: translateX(16px); opacity: .6; } }
 
 .drawer-head {
   display: flex; align-items: flex-start; gap: 12px;
-  padding: 18px 20px; border-bottom: 1px solid var(--line);
+  padding: 18px 20px; border-bottom: 1px solid var(--rule);
 }
 .drawer-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .drawer-title h3 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.015em; }
@@ -904,7 +990,7 @@ table.items tr:hover td { background: var(--hover); }
   max-width: 78ch;
 }
 
-.drawer-files { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 16px; }
+.drawer-files { margin-top: 24px; border-top: 1px solid var(--rule); padding-top: 16px; }
 
 /* A handout is a name and the two things you can do with it. The actions live
    on the row rather than one above the list and one beside each name, which was
@@ -915,7 +1001,7 @@ table.items tr:hover td { background: var(--hover); }
   --fileext-w: 42px;
   --filerow-gap: 12px;
   display: flex; align-items: center; gap: 8px var(--filerow-gap); flex-wrap: wrap;
-  padding: 11px 0; border-top: 1px solid var(--line); font-size: 13px;
+  padding: 11px 0; border-top: 1px solid var(--rule); font-size: 13px;
 }
 .panel-head + .filerow { border-top: none; padding-top: 2px; }
 
@@ -923,8 +1009,8 @@ table.items tr:hover td { background: var(--hover); }
 .fileext {
   flex: none; width: var(--fileext-w, 42px); text-align: center;
   font-size: 9.5px; font-weight: 650; letter-spacing: .04em;
-  color: var(--muted); background: var(--panel-2);
-  border: 1px solid var(--line); border-radius: var(--r-1); padding: 3px 0;
+  color: var(--ink-3); background: var(--paper);
+  border: 1px solid var(--rule); border-radius: var(--r-panel); padding: 3px 0;
   overflow: hidden;
 }
 .fileid {
@@ -936,7 +1022,7 @@ table.items tr:hover td { background: var(--hover); }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .filerow .fsize {
-  flex: none; color: var(--muted); font-size: 12px;
+  flex: none; color: var(--ink-3); font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 /* Their own line, flush with the row's left edge — under the type chip, so the
@@ -957,15 +1043,14 @@ table.items tr:hover td { background: var(--hover); }
 .viewer {
   position: fixed; z-index: 50; inset: 28px;
   display: flex; flex-direction: column; overflow: hidden;
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r-4); box-shadow: var(--shadow-3);
-  animation: pop-in .14s ease-out;
+  background: var(--panel); border: 1px solid var(--rule);
+  border-radius: var(--r-panel); box-shadow: var(--e-modal);
+  animation: fade var(--t-fade);
 }
-@keyframes pop-in { from { opacity: 0; transform: scale(.99); } }
 
 .viewer-head {
   display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap;
-  padding: 12px 16px; border-bottom: 1px solid var(--line);
+  padding: 12px 16px; border-bottom: 1px solid var(--rule);
   background: var(--panel);
 }
 .viewer-id { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -975,13 +1060,13 @@ table.items tr:hover td { background: var(--hover); }
 }
 .viewer-head .spacer { flex: 1 1 20px; }
 
-.viewer-body { flex: 1; min-height: 0; background: var(--panel-2); position: relative; }
+.viewer-body { flex: 1; min-height: 0; background: var(--paper); position: relative; }
 /* Covers the frame being written into rather than replacing it, because the
    renderer needs its container to already be on the page. */
 .viewer-busy {
   position: absolute; inset: 0; margin: 0; z-index: 1;
   display: flex; align-items: center; justify-content: center; gap: 9px;
-  background: var(--panel-2); color: var(--muted); font-size: 13.5px;
+  background: var(--paper); color: var(--ink-3); font-size: 13.5px;
 }
 
 /* The browser's own PDF reader, given the whole panel. */
@@ -992,8 +1077,8 @@ table.items tr:hover td { background: var(--hover); }
 .viewer-body.kind-video,
 .viewer-body.kind-audio,
 .viewer-body.kind-none { display: grid; place-items: center; padding: 24px; overflow: auto; }
-.viewer-image { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--r-2); }
-.viewer-media { max-width: 100%; max-height: 100%; border-radius: var(--r-2); }
+.viewer-image { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--r-panel); }
+.viewer-media { max-width: 100%; max-height: 100%; border-radius: var(--r-panel); }
 .viewer-media[controls] { width: min(880px, 100%); }
 
 .viewer-fallback {
@@ -1005,7 +1090,7 @@ table.items tr:hover td { background: var(--hover); }
 .viewer-body.kind-text { overflow: auto; padding: 22px 24px; }
 .viewer-text {
   margin: 0; max-width: 110ch;
-  font: 12.5px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 12.5px/1.7 var(--font-mono);
   color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 
@@ -1014,7 +1099,7 @@ table.items tr:hover td { background: var(--hover); }
 .viewer-docx { display: flex; flex-direction: column; align-items: center; gap: 18px; }
 .viewer-docx .docx-wrapper { background: transparent; padding: 0; display: grid; gap: 18px; }
 .viewer-docx .docx-wrapper > section.docx {
-  box-shadow: var(--shadow-2); border-radius: var(--r-2);
+  border-radius: var(--r-panel);
   /* Word's own colours are absolute, so the page stays a page in both themes. */
   background: #fff; color: #111;
 }
@@ -1023,24 +1108,24 @@ table.items tr:hover td { background: var(--hover); }
 .viewer-body.kind-pptx { overflow: auto; padding: 22px 16px; }
 .deck { display: flex; flex-direction: column; gap: 16px; max-width: 900px; margin: 0 auto; }
 .slide {
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r-4); box-shadow: var(--shadow-1); padding: 18px 20px;
+  background: var(--panel); border: 1px solid var(--rule);
+  border-radius: var(--r-panel); padding: 18px 20px;
 }
 .slide-no {
   font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
-  color: var(--muted); font-weight: 650; margin-bottom: 6px;
+  color: var(--ink-3); font-weight: 650; margin-bottom: 6px;
 }
 .slide h3 { margin: 0 0 10px; font-size: 17px; font-weight: 650; letter-spacing: -0.015em; }
 .slide-images { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
 .slide-images img {
-  max-width: 100%; max-height: 340px; border-radius: var(--r-2);
-  border: 1px solid var(--line); background: #fff;
+  max-width: 100%; max-height: 340px; border-radius: var(--r-panel);
+  border: 1px solid var(--rule); background: #fff;
 }
 .slide-lines { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 5px; }
 .slide-lines li { font-size: 13.5px; color: var(--ink-2); white-space: pre-wrap; }
-.slide-notes { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.slide-notes { margin-top: 12px; border-top: 1px solid var(--rule); padding-top: 10px; }
 .slide-notes summary {
-  cursor: pointer; font-size: 12px; color: var(--muted); font-weight: 650;
+  cursor: pointer; font-size: 12px; color: var(--ink-3); font-weight: 650;
   text-transform: uppercase; letter-spacing: .06em;
 }
 .slide-notes p { margin: 8px 0 0; font-size: 13px; color: var(--ink-2); white-space: pre-wrap; }
@@ -1050,7 +1135,7 @@ table.items tr:hover td { background: var(--hover); }
   text-align: left; color: var(--ink); font-weight: 500; font-size: 13px;
   max-width: 100%;
 }
-.filerow .fn.linkish:hover:not(:disabled) { color: var(--accent); text-decoration: underline; }
+.filerow .fn.linkish:hover:not(:disabled) { color: var(--link); text-decoration: underline; }
 
 .mat-file .fileext { width: 34px; padding: 1px 0; font-size: 9px; }
 
@@ -1063,15 +1148,15 @@ table.items tr:hover td { background: var(--hover); }
 
 .seg {
   display: inline-flex; gap: 2px; padding: 3px; max-width: 100%;
-  border-radius: var(--r-3); flex-wrap: wrap;
-  background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow-1);
+  border-radius: var(--r-panel); flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--rule);
 }
 .seg button {
-  border: 0; background: transparent; border-radius: var(--r-2);
+  border: 0; background: transparent; border-radius: var(--r-panel);
   padding: 6px 14px; font-size: 13px; color: var(--ink-2); min-height: 30px;
 }
 .seg button:hover:not(.on) { background: var(--hover); color: var(--ink); }
-.seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.seg button.on { background: var(--ink); color: var(--on-ink); font-weight: 500; }
 
 /* A screen whose whole content is prose gets a column, not the full width. */
 .reading { max-width: 960px; }
@@ -1093,20 +1178,20 @@ table.items tr:hover td { background: var(--hover); }
 .set-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 
 .set-item {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--rule);
   margin-inline: -18px; padding-inline: 18px;
 }
 .panel-head + .set-item, .set-search + .set-item { border-top: none; }
 .set-item-head { align-items: center; gap: 12px; padding-block: 11px; }
 /* "Edit" / "Close" is the row's affordance, so it reads as one. */
-.set-item-head > .note:last-child { color: var(--accent); flex: none; }
+.set-item-head > .note:last-child { color: var(--link); flex: none; }
 .set-item-id {
   flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 3px 8px;
   align-items: center;
 }
 .set-item-id b { font-weight: 650; }
 .set-item-id .note { flex-basis: 100%; }
-.set-item.open { background: var(--panel-2); }
+.set-item.open { background: var(--paper); }
 .set-item.open > .set-item-head { background: transparent; }
 
 .set-item-body {
@@ -1120,11 +1205,11 @@ table.items tr:hover td { background: var(--hover); }
 .set-card-meta { display: flex; flex-direction: column; gap: 3px; }
 .set-card .ccard-foot { min-height: 40px; }
 
-.set-hidden { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.set-hidden { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rule); }
 .set-hidden .label { display: block; margin-bottom: 4px; }
 .set-hidden-row {
   display: flex; align-items: center; gap: 10px; padding: 7px 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--rule);
 }
 .set-hidden .label + .set-hidden-row { border-top: none; }
 
@@ -1135,26 +1220,26 @@ table.items tr:hover td { background: var(--hover); }
 /* A numbered console errand each, so it is obvious how many are left. */
 .gsteps { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 12px; }
 .gsteps li { display: flex; gap: 11px; align-items: flex-start; max-width: 78ch; }
-.gsteps a { color: var(--accent); text-decoration: none; font-weight: 650; font-size: 13.5px; }
+.gsteps a { color: var(--link); text-decoration: none; font-weight: 650; font-size: 13.5px; }
 .gsteps a:hover { text-decoration: underline; }
 .gstep-n {
   flex: none; width: 21px; height: 21px; border-radius: 50%;
-  background: var(--accent-soft); color: var(--accent);
+  background: var(--hover); color: var(--link);
   font-size: 11.5px; font-weight: 650; font-variant-numeric: tabular-nums;
   display: grid; place-items: center; margin-top: 1px;
 }
 
 .gdrop, .gconnect {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  background: var(--panel-2); border: 1px solid var(--line);
-  border-radius: var(--r-3); padding: 14px 16px;
+  background: var(--paper); border: 1px solid var(--rule);
+  border-radius: var(--r-panel); padding: 14px 16px;
 }
 .gdrop > div:first-child, .gconnect > div:first-child { min-width: 0; flex: 1 1 320px; }
 .gdrop input[type="file"] { font-size: 12.5px; max-width: 100%; }
 .gmanual { display: grid; gap: 12px; margin-top: 14px; max-width: 440px; }
 .gmanual button { justify-self: start; }
 .gclient {
-  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rule);
   overflow-wrap: anywhere; font-size: 12px;
 }
 
@@ -1163,11 +1248,11 @@ table.items tr:hover td { background: var(--hover); }
 /* One card holding the whole tree, rather than a card per folder: a course is
    a list of weeks, and twelve identical floating bars is not a list. */
 .mat-tree {
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r-4); box-shadow: var(--shadow-1); overflow: hidden;
+  background: var(--panel); border: 1px solid var(--rule);
+  border-radius: var(--r-panel); overflow: hidden;
 }
 .mat-tree > .mat-folder, .mat-tree > .mat-item {
-  border: 0; border-top: 1px solid var(--line); border-radius: 0;
+  border: 0; border-top: 1px solid var(--rule); border-radius: 0;
   box-shadow: none; background: transparent;
 }
 .mat-tree > :first-child { border-top: 0; }
@@ -1181,22 +1266,22 @@ table.items tr:hover td { background: var(--hover); }
 }
 .mat-folder-head:hover:not(:disabled) { background: var(--hover); border-color: transparent; }
 .mat-folder-head b { font-weight: 650; }
-.mat-folder .mat-folder { border-top: 1px solid var(--line); }
+.mat-folder .mat-folder { border-top: 1px solid var(--rule); }
 .mat-folder .mat-folder .mat-folder-head { font-size: 13.5px; padding: 11px 18px; }
 
 .caret {
-  display: inline-block; color: var(--muted); font-size: 15px; line-height: 1;
-  transition: transform .14s; flex: none; width: 10px; text-align: center;
+  display: inline-block; color: var(--ink-3); font-size: 15px; line-height: 1;
+  flex: none; width: 10px; text-align: center;
 }
 .caret.open { transform: rotate(90deg); }
 
 .mat-folder-body { padding: 0 18px 10px; }
 .mat-folder .mat-folder > .mat-folder-body { padding-left: 30px; }
 
-.mat-item { padding: 12px 0; border-top: 1px solid var(--line); }
+.mat-item { padding: 12px 0; border-top: 1px solid var(--rule); }
 .mat-folder-body > .mat-item:first-child { border-top: none; }
 .mat-tree > .mat-item { padding: 13px 18px; }
-.mat-item.hit { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.mat-item.hit { background: color-mix(in srgb, var(--link) 7%, transparent); }
 
 .mat-row { display: flex; align-items: flex-start; gap: 11px; }
 .mat-id { flex: 1; min-width: 0; }
@@ -1221,31 +1306,31 @@ table.items tr:hover td { background: var(--hover); }
 .mat-kind {
   flex: none; width: 92px; margin-top: 1px; text-align: center;
   font-size: 10px; text-transform: uppercase; letter-spacing: .03em; font-weight: 650;
-  color: var(--muted); background: var(--panel-2);
-  border: 1px solid var(--line); border-radius: var(--pill); padding: 2px 5px;
+  color: var(--ink-3); background: var(--paper);
+  border: 1px solid var(--rule); border-radius: 0; padding: 2px 5px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .mat-kind.k-assignment,
 .mat-kind.k-asmt-test-link {
-  color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-  background: var(--accent-soft);
+  color: var(--link); border-color: color-mix(in srgb, var(--link) 45%, transparent);
+  background: var(--hover);
 }
 
 .mat-score {
   font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ok);
   border: 1px solid color-mix(in srgb, var(--ok) 42%, transparent);
   background: color-mix(in srgb, var(--ok) 9%, transparent);
-  border-radius: var(--pill); padding: 0 8px; white-space: nowrap;
+  border-radius: 0; padding: 0 8px; white-space: nowrap;
 }
 .mat-due {
   font-size: 12px; color: var(--warn); white-space: nowrap;
   border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
   background: color-mix(in srgb, var(--warn) 10%, transparent);
-  border-radius: var(--pill); padding: 0 8px;
+  border-radius: 0; padding: 0 8px;
 }
 .mat-due.bad {
-  color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent);
-  background: color-mix(in srgb, var(--bad) 9%, transparent);
+  color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
 }
 
 .mat-body {
@@ -1259,86 +1344,82 @@ table.items tr:hover td { background: var(--hover); }
 .mat-file {
   display: inline-flex; align-items: center; gap: 7px; max-width: 100%;
   font-size: 12px; font-weight: 400; color: var(--ink-2); min-height: 28px;
-  background: var(--panel-2); border: 1px solid var(--line);
-  border-radius: var(--r-2); padding: 3px 10px;
+  background: var(--paper); border: 1px solid var(--rule);
+  border-radius: var(--r-panel); padding: 3px 10px;
 }
 .mat-file .fn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mat-file em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
-.mat-file .dl { color: var(--muted); font-size: 11px; line-height: 1; }
-.mat-file:hover:not(:disabled) .dl { color: var(--accent); }
+.mat-file em { font-style: normal; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.mat-file .dl { color: var(--ink-3); font-size: 11px; line-height: 1; }
+.mat-file:hover:not(:disabled) .dl { color: var(--link); }
 .mat-file.have {
   border-color: color-mix(in srgb, var(--ok) 45%, transparent);
   background: color-mix(in srgb, var(--ok) 8%, transparent);
 }
 .mat-file.have .dl { color: var(--ok); }
 
+/* ---------------------------------------------------------------- overview */
+
+/* The month, and the deadline rail beside it. The rail is a fixed width
+   because its rows are a fixed shape; the month takes the rest. */
+.board {
+  display: grid; gap: 20px; align-items: start;
+  grid-template-columns: minmax(0, 1fr) 352px;
+}
+.rail { min-width: 0; max-height: 648px; display: flex; flex-direction: column; }
+.rail-list { flex: 1; min-height: 0; overflow-y: auto; }
+/* The fade says the list keeps going. It is the list's last child, pinned to
+   the bottom while there is more to scroll and taking its own room once there
+   is not, so the last row can always be scrolled clear of it. */
+.rail-list::after {
+  content: ""; display: block; position: sticky; bottom: 0; height: 36px;
+  background: linear-gradient(to top, var(--paper), transparent);
+  pointer-events: none;
+}
+.rail > .empty { padding: 14px 0; }
+
 /* ------------------------------------------------- the dashboard, unscrolled
 
-   Only where there is genuinely room for it: narrower than this the two panels
-   stack, and shorter than this the month grid would be squeezed past reading.
-   Outside that window the dashboard scrolls like everything else, which is the
-   behaviour every other screen keeps at all sizes. */
+   Only where there is genuinely room for it: narrower than this the month and
+   the rail stack, and shorter than this the month would be squeezed past
+   reading. Outside that window the dashboard scrolls like everything else,
+   which is the behaviour every other screen keeps at all sizes. */
 @media (min-width: 1081px) and (min-height: 780px) {
   .app.fit { height: 100vh; overflow: hidden; }
   .app.fit .main {
     height: 100vh; overflow: hidden;
-    display: flex; flex-direction: column; padding-bottom: 22px;
+    display: flex; flex-direction: column; padding-bottom: 24px;
   }
 
-  /* The two panels take the space the header and the figures leave. */
-  .app.fit .split { flex: 1; min-height: 0; align-items: stretch; margin-bottom: 0; }
-  .app.fit #calendar, .app.fit #deadlines {
-    height: 100%; min-height: 0; margin-bottom: 0;
-    display: flex; flex-direction: column;
+  /* The month and the rail take the height the header and the band leave. */
+  .app.fit .board {
+    flex: 1; min-height: 0; align-items: stretch;
+    grid-template-rows: minmax(0, 1fr);
   }
+  .app.fit .cal { display: flex; flex-direction: column; min-height: 0; }
 
-  /* The month is what stretches: six rows sharing whatever is left. It grows
-     into spare height but never shrinks past the height a row can be read at —
-     on a short window the panel scrolls instead of squeezing the month into a
-     band of numbers. */
-  .app.fit #calendar { overflow-y: auto; }
+  /* The month is what stretches: six rows sharing whatever is left, down to the
+     height a row can still be read at (the date and one chip). */
   .app.fit .cal-grid {
-    /* Six rows share whatever is left, down to the height a row can still be
-       read at (~52px: the date and one chip). Past that the panel scrolls
-       rather than shrinking the month into a band of numbers. */
     flex: 1 1 auto; min-height: 342px;
-    grid-template-rows: auto repeat(6, minmax(0, 1fr));
-    grid-auto-rows: minmax(0, 1fr);
+    grid-template-rows: repeat(6, minmax(0, 1fr));
   }
   /* Clipped, not faded: a mask makes the cell's bottom edge transparent, and the
-     grid's line colour showing through reads as a shadow under every day. */
-  .app.fit .cal-cell { min-height: 0; overflow: hidden; }
+     rule showing through reads as a shadow under every day. */
+  .app.fit .cal-cell { overflow: hidden; }
 
-  /* The deadline list scrolls inside its own panel, so it cannot push the page
-     past the bottom of the screen. The fade says there is more below. */
-  .app.fit .due-list {
-    flex: 1; min-height: 0; overflow-y: auto;
-    margin-inline: -18px; padding-inline: 18px;
-  }
-  .app.fit #deadlines::after {
-    content: ""; position: absolute; left: 1px; right: 1px; bottom: 1px; height: 26px;
-    border-radius: 0 0 var(--r-4) var(--r-4); pointer-events: none;
-    background: linear-gradient(to top, var(--panel), transparent);
-  }
-  .app.fit .due-list > .due { margin-inline: 0; padding-inline: 0; width: 100%; }
+  /* The rail runs the full height of the month and scrolls inside itself. */
+  .app.fit .rail { max-height: none; min-height: 0; }
 }
 
 /* ------------------------------------------------------------- responsive */
 
-/* Below this a tile is too narrow for its own label — "Points at stake" starts
-   to clip — so the deadline card takes the row on its own and the three figures
-   share the one below. Laid on its side there, the figure beside the detail,
-   rather than stacked in the corner of a very wide box. */
-@media (max-width: 1180px) {
-  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .hero { grid-column: 1 / -1; }
-  .hero-body { flex-direction: row; align-items: baseline; gap: 24px; }
-  .hero-detail { flex: 1; }
-  .hero-num { margin-block: 2px; }
-}
-
+/* One column, month first. The page scrolls, so the rail runs its full length
+   and has nothing to fade. */
 @media (max-width: 1080px) {
-  .split { grid-template-columns: minmax(0, 1fr); }
+  .split, .board { grid-template-columns: minmax(0, 1fr); }
+  .rail { max-height: none; }
+  .rail-list { overflow: visible; }
+  .rail-list::after { display: none; }
 }
 
 /* One bar instead of a column: the course list is the part that can grow, so it
@@ -1348,8 +1429,7 @@ table.items tr:hover td { background: var(--hover); }
   .sidebar {
     position: sticky; top: 0; z-index: 20; height: auto; width: 100%;
     flex-direction: row; align-items: center; gap: 10px;
-    padding: 9px 14px; border-right: none; border-bottom: 1px solid var(--line);
-    box-shadow: var(--shadow-1);
+    padding: 9px 14px; border-right: none; border-bottom: 1px solid var(--rule);
   }
   /* Everything but the mark goes into one scroller. Letting each nav size to
      its own content and pushing the overflow onto the page is what used to drag
@@ -1366,9 +1446,11 @@ table.items tr:hover td { background: var(--hover); }
   /* Snapping means the strip never comes to rest on half a course name. */
   .nav-strip { scroll-snap-type: x proximity; }
   .nav-strip .nav { scroll-snap-align: start; }
-  .brand { flex: none; }
+  .brand { flex: none; padding: 0; }
   .sidebar nav { flex-direction: row; flex: none; }
-  .nav { flex: none; }
+  .nav { flex: none; padding: 7px 10px; }
+  /* Laid down, the current page is ruled underneath rather than beside. */
+  .nav.on { box-shadow: inset 0 -2px 0 var(--ink); }
   .nav-title { display: none; }
   .nav-course-name { max-width: 104px; }
   .nav-foot { margin-top: 0; }
@@ -1378,17 +1460,20 @@ table.items tr:hover td { background: var(--hover); }
      is only so much width, and the course list is the part that has to keep
      it. */
   .side-foot {
-    flex: none; margin-top: 0; padding: 0; border-top: none;
+    flex: none; margin: 0; padding: 0; border-top: none;
   }
   .side-who { display: none; }
   .main { padding: 18px 16px 64px; }
 }
 
 @media (max-width: 760px) {
-  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  /* Three tiles over two columns leaves one on its own; let it take the width
-     rather than sit beside a gap. */
-  .stats .tile:last-child { grid-column: 1 / -1; }
+  /* The figures drop under the countdown and share the band's width. */
+  .band { flex-wrap: wrap; }
+  .band-hero { flex: 1 1 100%; }
+  .band-stats { flex: 1 1 100%; border-top: 1px solid var(--on-ink-rule); }
+  .stat { flex: 1 1 0; min-width: 0; }
+  .stat:first-child { border-left: 0; }
+  .stat-note { max-width: none; }
   .set-item-body { grid-template-columns: minmax(0, 1fr); }
   .facts > div { flex-direction: column; gap: 2px; }
   .facts dt { width: auto; }
@@ -1396,12 +1481,8 @@ table.items tr:hover td { background: var(--hover); }
 }
 
 @media (max-width: 720px) {
-  .cal-grid { grid-auto-rows: minmax(62px, auto); }
-  /* Chips cannot carry a readable name here, and a bare colour is not an
-     identity — the day shows a count and opens its full list on tap. */
-  .chip, .cal-more { display: none; }
-  .cal-count { display: block; }
-  .cal-wd { font-size: 10px; letter-spacing: 0; padding: 6px 2px; }
+  .cal-grid { grid-auto-rows: minmax(80px, auto); }
+  .cal-cell { padding: 5px 5px 6px; }
   .mat-kind { width: 74px; letter-spacing: 0; }
   .mat-folder-head, .mat-tree > .mat-item { padding-inline: 14px; }
   .mat-folder-body { padding: 0 14px 8px; }
@@ -1412,24 +1493,33 @@ table.items tr:hover td { background: var(--hover); }
     margin-inline: -15px; padding-inline: 15px; width: calc(100% + 30px);
   }
   .set-item { margin-inline: -15px; padding-inline: 15px; }
-  .app.fit .due-list { margin-inline: -15px; padding-inline: 15px; }
   .it-cat { display: none; }
 }
 
 @media (max-width: 560px) {
-  .stats { grid-template-columns: minmax(0, 1fr); }
   /* One card to a row: there is nothing left to line the footers up with, so
      each card is as tall as its own content. */
   .grid.cards { grid-auto-rows: auto; }
   .ccard { min-height: 0; }
   .ccard-foot { min-height: 0; padding-top: 10px; }
-  .hero, .tile { padding: 12px 14px; }
-  .tile-num { font-size: 27px; margin: 2px 0 4px; }
-  .hero-body { flex-direction: column; align-items: stretch; gap: 0; }
-  .hero-num { margin: 4px 0 6px; }
+
+  /* The countdown stands over what it counts down to. */
+  .band-hero { flex-wrap: wrap; gap: 12px; padding: 14px 16px; }
+  .band-detail { flex: 1 1 100%; padding: 12px 0 0; border-left: 0; border-top: 1px solid var(--on-ink-rule); }
+  .band-num { font-size: 40px; letter-spacing: -2px; }
+  .stat { padding: 12px 14px; }
+  .stat-num { font-size: 24px; }
+
+  /* Chips cannot carry a readable name here, and a bare colour is not an
+     identity — the day shows a count and opens its full list on tap. */
+  .cal-grid { grid-auto-rows: minmax(56px, auto); }
+  .chip, .cal-more { display: none; }
+  .cal-count { display: block; }
+  .cal-dow > .label { letter-spacing: 0; padding-left: 2px; }
+
   .topbar, .page-head { gap: 10px; }
   .topbar .spacer, .page-head .spacer { display: none; }
-  .topbar h1, .page-head h1, .course-head h1 { font-size: 20px; }
+  .topbar h1, .page-head h1, .course-head h1 { font-size: 26px; }
   .grid { grid-template-columns: minmax(0, 1fr); }
   .main { padding: 16px 14px 56px; }
 }

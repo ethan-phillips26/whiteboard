@@ -19,14 +19,21 @@ function hostPattern(origin) {
   return `${u.protocol}//${u.hostname}/*`;
 }
 
-// Blackboard's hosted Learn keeps course files in S3 behind this CDN, and its file
+// Blackboard's hosted Learn keeps course files off the Learn host, and its file
 // links redirect there with a signed URL. Following that redirect from the extension
-// needs permission for the CDN too, or the browser withholds the file like any other
-// cross-site response. Every region's host sits under this one domain.
-const FILE_STORAGE = "https://*.content.blackboardcdn.com/*";
+// needs permission for the storage host too, or the browser withholds the file like
+// any other cross-site response. Most schools' files sit behind the CDN; some are on
+// an `alt-<hash>.blackboard.com` host instead. Both are asked for up front, because
+// learning the host from a refused download meant the first file anybody opened
+// failed and "Allow access" had to be pressed a second time.
+const FILE_STORAGE = [
+  "https://*.content.blackboardcdn.com/*",
+  "https://*.blackboard.com/*",
+];
 
 /** Everything connecting asks for, in one prompt: the Blackboard, and its files —
- * the CDN, plus any storage host a refused download was found to redirect to. */
+ * the known storage hosts, plus any other a refused download was found to
+ * redirect to. */
 function connectPatterns(origin, fileHosts = []) {
-  return [hostPattern(origin), FILE_STORAGE, ...fileHosts];
+  return [hostPattern(origin), ...FILE_STORAGE, ...fileHosts];
 }

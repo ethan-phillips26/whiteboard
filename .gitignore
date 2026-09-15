@@ -33,3 +33,9 @@ Desktop.ini
 
 # Kept locally, not published.
 CLAUDE.md
+
+# The localhost copy of the extension manifest. Never commit or publish.
+local_manifest.json
+
+# The loadable localhost copy of extension/. Never commit or publish.
+extension-local/

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
-import { THEMES, resolve } from "../lib/theme.js";
+import { THEMES } from "../lib/theme.js";
 import { dateTime, filesize, points } from "../lib/format.js";
 
-const THEME_LABELS = { light: "Light", dark: "Dark", system: "Match system" };
+const THEME_LABELS = { light: "Light", dark: "Dark" };
 
 // The choice lives in localStorage rather than on the server: it belongs to the
 // screen you are reading on, not to the account, so a phone and a desktop can
@@ -24,9 +24,7 @@ function Appearance({ theme, onTheme }) {
     <section className="panel" id="appearance">
       <div className="panel-head">
         <h2>Appearance</h2>
-        <span className="note dim">
-          {theme === "system" ? `following this device — ${resolve("system")}` : "set by you"}
-        </span>
+        <span className="note dim">saved in this browser</span>
       </div>
       <div className="seg">
         {THEMES.map((t) => (

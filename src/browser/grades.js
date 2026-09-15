@@ -128,6 +128,17 @@ export function letterFor(pct, scale = null) {
   return "F";
 }
 
+// The common 4.0 scale. A letter a course's own scale uses that is not on it
+// (a "P", say) counts toward nothing rather than being guessed at.
+const GRADE_POINTS = {
+  "A+": 4, A: 4, "A-": 3.7, "B+": 3.3, B: 3, "B-": 2.7, "C+": 2.3, C: 2,
+  "C-": 1.7, "D+": 1.3, D: 1, "D-": 0.7, F: 0,
+};
+
+export function gradePoints(letter) {
+  return GRADE_POINTS[String(letter ?? "").trim().toUpperCase()] ?? null;
+}
+
 export function summarise(breakdown, scale = null, rate = 1) {
   const cur = currentGrade(breakdown);
   const proj = projectedGrade(breakdown, rate);

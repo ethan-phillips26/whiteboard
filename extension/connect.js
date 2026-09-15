@@ -10,24 +10,31 @@ chrome.storage.local.get(["host", "fileHosts"]).then(({ host: saved, fileHosts: 
   fileHosts = known ?? [];
 });
 
+// The tone is what the page colours the line by: "bad", "ok", or none.
+function say(text, tone) {
+  msg.textContent = text;
+  if (tone) msg.dataset.tone = tone;
+  else delete msg.dataset.tone;
+}
+
 document.getElementById("form").addEventListener("submit", async (e) => {
   e.preventDefault();
   let origin;
   try {
     origin = blackboardOrigin(host.value);
   } catch (err) {
-    msg.textContent = err.message;
+    say(err.message, "bad");
     return;
   }
   // Nothing may be awaited before this: the prompt is only allowed while the click
   // that asked for it is still being handled.
   const ok = await chrome.permissions.request({ origins: connectPatterns(origin, fileHosts) });
   if (!ok) {
-    msg.textContent = "Not allowed — Whiteboard can't read Blackboard without this.";
+    say("Not allowed — Whiteboard can't read Blackboard without this.", "bad");
     return;
   }
   await chrome.storage.local.set({ host: origin });
-  msg.textContent = "Connected. You can close this tab.";
+  say("Connected. You can close this tab.", "ok");
   // Opened by the dashboard, which is polling and will notice; go back to it.
   if (params.has("host")) setTimeout(() => window.close(), 800);
 });

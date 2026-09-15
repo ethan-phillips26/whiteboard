@@ -169,9 +169,9 @@ async function fileGet(path) {
     }
     const target = redirectedTo(url.href);
     const where = target ? new URL(target) : null;
-    const pattern = where ? `${where.protocol}//${where.hostname}/*` : FILE_STORAGE;
-    if (!(await chrome.permissions.contains({ origins: [pattern] }))) {
-      if (where) await rememberFileHost(pattern);
+    const patterns = where ? [`${where.protocol}//${where.hostname}/*`] : FILE_STORAGE;
+    if (!(await chrome.permissions.contains({ origins: patterns }))) {
+      if (where) await rememberFileHost(patterns[0]);
       return {
         error: "needs-file-access",
         message: `Blackboard keeps this file on ${where?.hostname ?? "its storage server"}, ` +

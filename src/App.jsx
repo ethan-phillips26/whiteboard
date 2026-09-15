@@ -16,7 +16,7 @@ import { parseICS } from "./lib/ics.js";
 import { countUnread, markRead, readAt as storedReadAt } from "./lib/read.js";
 import { HOME, go, href, useRoute } from "./lib/route.js";
 import { useTitle } from "./lib/title.js";
-import { apply as applyTheme, stored as storedTheme, watch as watchTheme } from "./lib/theme.js";
+import { apply as applyTheme, stored as storedTheme } from "./lib/theme.js";
 
 export default function App() {
   const [auth, setAuth] = useState(null);
@@ -51,12 +51,10 @@ export default function App() {
   }, []);
 
   // The pre-paint script in index.html has already stamped the document; this
-  // keeps React's idea of the choice in step and follows the OS while on
-  // "system".
+  // keeps React's idea of the choice in step with it.
   const [theme, setTheme] = useState(storedTheme);
   useEffect(() => {
     applyTheme(theme);
-    return watchTheme(theme, () => applyTheme("system"));
   }, [theme]);
 
 
@@ -345,32 +343,49 @@ export default function App() {
         <>
         <header className="topbar">
           <div>
-            <h1>{name ? `Welcome back, ${name}!` : "Whiteboard"}</h1>
-            <p className="note dim">
+            <h1>{name ? `Welcome back, ${name}` : "Whiteboard"}</h1>
+            <p className="stamp">
               {new Date().toLocaleDateString(undefined, {
-                weekday: "long", month: "long", day: "numeric",
+                weekday: "short", day: "numeric", month: "short", year: "numeric",
               })}
               {data.cached_at && (
-                <> · synced {new Date(data.cached_at).toLocaleTimeString()}</>
+                <> · synced {new Date(data.cached_at).toLocaleTimeString(undefined, {
+                  hour: "numeric", minute: "2-digit",
+                })}</>
               )}
             </p>
           </div>
           <div className="spacer" />
           <div className="row actions">
-            <button className="primary" onClick={syncNow} disabled={syncing}>
-              {syncing ? <><span className="spin" /> Syncing</> : "Sync now"}
-            </button>
             <button onClick={() => api.exportCalendar().catch((e) => setError(e.message))}>
               Export .ics
+            </button>
+            {/* Both labels are always laid out and one is hidden, so the button
+                is as wide syncing as it is at rest and the row never jumps. */}
+            <button className="primary hold" onClick={syncNow} disabled={syncing}>
+              <span aria-hidden={syncing}>Sync now</span>
+              <span aria-hidden={!syncing}><span className="spin" /> Syncing</span>
             </button>
           </div>
         </header>
 
-        {error && <p className="err banner">{error}</p>}
+        {error && (
+          <p className="err banner">
+            {error}
+            <button className="linkish" onClick={syncNow} disabled={syncing}>
+              Try again
+            </button>
+          </p>
+        )}
 
-        <StatRow assignments={data.assignments} courses={data.courses} order={order} />
+        <StatRow
+          assignments={data.assignments}
+          courses={data.courses}
+          standings={data.standings}
+          order={order}
+        />
 
-        <div className="split">
+        <div className="board">
           <Calendar
             events={events}
             loading={calLoading}

@@ -5,23 +5,81 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Connect Whiteboard to Blackboard</title>
   <style>
-    /* Canvas and CanvasText are the browser's own page colours, so this page sits
-       on exactly the background the system theme gives every other page. */
-    :root { color-scheme: light dark; --fg: CanvasText; --muted: #6b6b70; --bg: Canvas; --line: #dcdcd6; --accent: #2f5fd0; }
-    @media (prefers-color-scheme: dark) { :root { --muted: #9a9aa2; --line: #34343a; --accent: #7d9cf0; } }
-    body { margin: 0; padding: 12vh 20px; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+    /* The dashboard's tokens, copied rather than linked: an extension page can't
+       load the site's stylesheet, and fetching web fonts from here would be the
+       extension talking to a host it has no business with. The faces are named
+       first so a machine that has them uses them; everyone else gets the same
+       fallbacks the dashboard falls back to. It is always light: that is the
+       dashboard's default, the system's preference is not followed, and a dark
+       choice made in the dashboard lives in the site's storage, out of reach. */
+    :root {
+      color-scheme: light;
+      --paper: #f7f4ed; --panel: #fffdf8; --rule-strong: #cdc4ac;
+      --ink: #1c1a17; --ink-hover: #33302a; --ink-2: #4a463e; --ink-3: #8d8778;
+      --on-ink: #f7f4ed; --link: #2b5f8f; --ok: #2f7a6a; --danger: #a33c28;
+      --tone-od-bg: #f8e7e1; --tone-ok-bg: #e4efe9;
+      --font-display: "Instrument Serif", Georgia, serif;
+      --font-ui: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+      --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 12vh 20px;
+      background: var(--paper); color: var(--ink);
+      font: 400 13.5px/1.55 var(--font-ui); -webkit-font-smoothing: antialiased;
+    }
     main { max-width: 30rem; margin: 0 auto; }
-    h1 { font-size: 1.35rem; margin: 0 0 .5rem; }
-    p { color: var(--muted); margin: 0 0 1.25rem; }
-    label { display: block; font-weight: 600; margin-bottom: .35rem; }
-    .row { display: flex; gap: .5rem; flex-wrap: wrap; }
-    input { flex: 1 1 14rem; font: inherit; padding: .55rem .7rem; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; }
-    button { font: inherit; font-weight: 600; padding: .55rem 1rem; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
-    #msg { margin-top: 1rem; color: var(--fg); min-height: 1.5em; }
+
+    .brand {
+      display: flex; align-items: center; gap: 9px;
+      padding-bottom: 12px; margin-bottom: 22px; border-bottom: 2px solid var(--ink);
+    }
+    /* The dashboard's mark: three ruled lines on an ink square. */
+    .mark {
+      width: 22px; height: 22px; flex: none;
+      background:
+        linear-gradient(var(--paper), var(--paper)) 4px 4px / 14px 2px no-repeat,
+        linear-gradient(var(--paper), var(--paper)) 4px 10px / 9px 2px no-repeat,
+        linear-gradient(var(--paper), var(--paper)) 4px 16px / 12px 2px no-repeat,
+        var(--ink);
+    }
+    .name { font: 400 19px/1 var(--font-display); }
+
+    h1 { margin: 0 0 20px; font: 400 32px/1.05 var(--font-display); text-wrap: balance; }
+    label { display: block; margin-bottom: 6px; font: 500 11px/1 var(--font-ui); color: var(--ink-2); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    :focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+    /* An address is a string of characters, not prose, so it is set in mono. */
+    input {
+      flex: 1 1 14rem; min-width: 0;
+      font: 400 13px/1 var(--font-mono); color: var(--ink);
+      background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 4px;
+      padding: 10px 12px;
+    }
+    input::placeholder { color: var(--ink-3); }
+    input:hover { border-color: var(--ink-3); }
+    input:focus-visible { border-color: var(--link); }
+    button {
+      font: 500 12.5px/1 var(--font-ui); white-space: nowrap; cursor: pointer;
+      color: var(--on-ink); background: var(--ink);
+      border: 1px solid var(--ink); border-radius: 2px; padding: 10px 15px;
+    }
+    button:hover { background: var(--ink-hover); border-color: var(--ink-hover); }
+
+    /* Status is said inline, in the tone of what happened. */
+    #msg { margin-top: 14px; min-height: 1.5em; font-size: 12.5px; color: var(--ink-2); }
+    #msg[data-tone] { padding: 11px 13px; border: 1px solid; border-radius: 2px; }
+    #msg[data-tone="bad"] { color: var(--danger); background: var(--tone-od-bg); border-color: var(--danger); }
+    #msg[data-tone="ok"] { color: var(--ok); background: var(--tone-ok-bg); border-color: var(--ok); }
   </style>
 </head>
 <body>
   <main>
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <span class="name">Whiteboard</span>
+    </div>
     <h1>Connect Whiteboard to Blackboard</h1>
     <form id="form">
       <label for="host">Blackboard address</label>

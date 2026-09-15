@@ -81,16 +81,20 @@ export default function Calendar({ events, loading, error, onReload,
   }
 
   return (
-    <section className="panel cal" id="calendar">
-      <div className="panel-head">
-        <h2>Calendar</h2>
-        <span className="note">
+    <section className="cal" id="calendar">
+      <div className="sheet-head">
+        <h2>
+          {MONTHS[month.getMonth()]} <span className="dim">{month.getFullYear()}</span>
+        </h2>
+        <span className="sheet-count">
           {loading
             ? "reading calendar…"
-            : `${monthCount} due in ${MONTHS[month.getMonth()]}`}
+            : `${monthCount} due ${
+                sameDay(month, new Date(today.getFullYear(), today.getMonth(), 1))
+                  ? "this month" : `in ${MONTHS[month.getMonth()]}`}`}
         </span>
         <div className="spacer" />
-        <div className="cal-nav">
+        <div className="joined">
           <button onClick={() => shift(-1)} aria-label="Previous month">‹</button>
           <button onClick={goToday}>Today</button>
           <button onClick={() => shift(1)} aria-label="Next month">›</button>
@@ -103,14 +107,11 @@ export default function Calendar({ events, loading, error, onReload,
         </p>
       )}
 
-      <div className="cal-title">
-        <strong>{MONTHS[month.getMonth()]}</strong> {month.getFullYear()}
+      <div className="cal-dow" aria-hidden="true">
+        {WEEKDAYS.map((d) => <span key={d} className="label">{d}</span>)}
       </div>
 
       <div className="cal-grid">
-        {WEEKDAYS.map((d) => (
-          <div key={d} className="cal-wd" aria-hidden="true">{d}</div>
-        ))}
         {cells.map((cell) => {
           const list = byDay.get(cell.key) ?? [];
           const isToday = sameDay(cell.date, today);
@@ -136,7 +137,6 @@ export default function Calendar({ events, loading, error, onReload,
                   title={`${e.summary}\n${time(e.due)}${
                     e.points ? ` · ${points(e.points)}` : ""}`}
                 >
-                  <i className="dot" />
                   <span className="chip-t">{e.title || e.summary}</span>
                 </span>
               ))}

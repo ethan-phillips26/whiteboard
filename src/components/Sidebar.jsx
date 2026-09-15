@@ -1,10 +1,12 @@
 import { courseSlot } from "../lib/format.js";
 import { href } from "../lib/route.js";
 
+// Unread announcements are something to go and read, so theirs is the one count
+// set solid; how many gradebooks total up is only a fact.
 const SECTIONS = [
   { name: "overview", label: "Overview", to: href.overview },
   { name: "grades", label: "Grades", to: href.grades },
-  { name: "announcements", label: "Announcements", to: href.announcements },
+  { name: "announcements", label: "Announcements", to: href.announcements, loud: true },
 ];
 
 /** "Ethan Phillips" if Blackboard gave us both halves, else whatever it gave. */
@@ -24,10 +26,8 @@ export default function Sidebar({ me, courses, counts, route, order,
     <aside className="sidebar">
       <div className="brand">
         <span className="brand-mark" aria-hidden="true" />
-        <div>
-          <div className="brand-name">Whiteboard</div>
-        </div>
-        {demo && <span className="flag">Demo</span>}
+        <span className="brand-name">Whiteboard</span>
+        {demo && <span className="brand-demo">Demo</span>}
       </div>
 
       {/* On a phone the sidebar lies down into one bar and this is the part
@@ -43,7 +43,9 @@ export default function Sidebar({ me, courses, counts, route, order,
             aria-current={route.name === s.name ? "page" : undefined}
           >
             {s.label}
-            {counts[s.name] ? <span className="pill">{counts[s.name]}</span> : null}
+            {counts[s.name] ? (
+              <span className={s.loud ? "count-pill" : "nav-count"}>{counts[s.name]}</span>
+            ) : null}
           </a>
         ))}
       </nav>
