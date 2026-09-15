@@ -111,18 +111,13 @@ export default function ExtensionLogin({ auth, onSignedIn }) {
     body = (
       <>
         <p className="note">
-          This page can't read Blackboard by itself, because browsers don't let one
-          site read another's data. The Whiteboard Connector extension does the
-          reading with the Blackboard session already in this browser. It only reads.
+          This page can't read Blackboard by itself. The Whiteboard Connector extension does the
+          reading with the Blackboard session already in this browser.
         </p>
         <a className="btn primary login-submit" href={DOWNLOAD} download="whiteboard-connector.zip">
           Download the extension
         </a>
         {FIREFOX ? [firefox, chromium] : [chromium, firefox]}
-        <p className="note dim">
-          Type those addresses into the address bar yourself; pages aren't allowed to
-          link to them.
-        </p>
         <button className="login-submit" onClick={() => window.location.reload()}>
           I've installed it — reload
         </button>

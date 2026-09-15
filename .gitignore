@@ -56,3 +56,4 @@ Desktop.ini
 # The browser build, produced by `npm run build:browser` and deployed by the pages workflow.
 dist-browser/
 CLAUDE.md
+CLAUDE.md
