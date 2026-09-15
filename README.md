@@ -108,6 +108,11 @@ the page, and it walks you through connecting and signing in. The `pages`
 workflow deploys `dist-browser/` on every push to `main` once Pages is set to
 "GitHub Actions" in the repository settings.
 
+It is served at <https://ethanphillips.dev/whiteboard/>. The portfolio repo
+(`ethan-phillips26.github.io`) is the user site and owns the domain, so GitHub serves
+every project's Pages site beneath it at `/<repo-name>`; this repo is named `whiteboard`
+for that reason. The extension only answers that exact path.
+
 ## Desktop app
 
 ```bash

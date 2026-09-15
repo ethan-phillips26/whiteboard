@@ -10,10 +10,12 @@ if (typeof importScripts === "function") importScripts("origin.js");
 const API_PREFIX = "/learn/api/public/";
 const ORIGIN_RULE_ID = 1;
 
-// Pages allowed to ask. The manifest only injects the bridge on these, but this is
-// the check that still holds if the manifest ever grows a broader pattern.
-const PAGE_ORIGINS = [
-  /^https:\/\/ethan-phillips26\.github\.io$/,
+// Pages allowed to ask: the dashboard's own path, not merely its origin. Every
+// GitHub Pages project on ethanphillips.dev shares that one origin, and none of the
+// others has any business reading Blackboard. The manifest only injects the bridge
+// here too; this is the check that still holds if it ever grows a broader pattern.
+const PAGES = [
+  { origin: "https://ethanphillips.dev", path: "/whiteboard/" },
 ];
 
 async function currentHost() {
@@ -269,8 +271,9 @@ async function signIn() {
 async function handle(msg, sender) {
   // `sender.origin` is Chrome's; the url is there in every browser.
   const from = sender.origin || (sender.url ? new URL(sender.url).origin : "");
+  const path = sender.url ? new URL(sender.url).pathname : "";
   const own = from === self.location.origin;
-  if (!own && !PAGE_ORIGINS.some((re) => re.test(from))) {
+  if (!own && !PAGES.some((p) => p.origin === from && path.startsWith(p.path))) {
     return { error: "refused", message: "This page is not allowed to use the extension." };
   }
   switch (msg?.type) {

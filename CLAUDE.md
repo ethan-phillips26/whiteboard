@@ -256,10 +256,16 @@ other; the screens cannot tell the builds apart and should not have to.
 
 **The extension is the read-only rule for the browser build.** `background.js` only
 issues `GET`, only under `/learn/api/public/` (plus `/bbcswebdav/` for files), only on
-the one host the person connected, and only for pages in `PAGE_ORIGINS`. The page can
-ask for anything; the worker decides. It answers the Pages site only. Local work needs
-a copy with `http://localhost/*` added to the content script's `matches` and to
-`PAGE_ORIGINS`; never commit or publish that, or any page on the machine can use it.
+the one host the person connected, and only for pages in `PAGES`. The page can ask
+for anything; the worker decides. It answers https://ethanphillips.dev/whiteboard/ only,
+checked by path as well as origin: every Pages project on that domain shares the origin.
+Local work needs a copy with `http://localhost/*` added to the content script's `matches`
+and to `PAGES`; never commit or publish that, or any page on the machine can use it.
+
+**The site is at ethanphillips.dev/whiteboard because of how Pages nests.** The
+`ethan-phillips26.github.io` repo (the portfolio) is the user site and owns the domain,
+so every project repo's Pages site is served beneath it at `/<repo-name>` — this repo is
+`whiteboard` for that reason. Renaming it moves the site and breaks the extension.
 
 **Blackboard 403s any request whose `Origin` is not its own.** Chrome sends none on an
 extension's GETs; a `declarativeNetRequest` session rule strips it anyway for browsers

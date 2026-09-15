@@ -5,7 +5,7 @@ server — read Blackboard using the session the person already has in their bro
 
 ## Why an extension
 
-A web page on `github.io` cannot read Blackboard itself:
+A web page cannot read Blackboard itself:
 
 - **CORS.** Blackboard answers `Access-Control-Allow-Origin: <its own origin>`, so the
   browser withholds every response from any other site.
@@ -24,7 +24,7 @@ does send it — that has not been measured in Firefox.
 ## How it fits together
 
 ```
-github.io page ──postMessage──▶ bridge.js ──runtime.sendMessage──▶ background.js ──GET──▶ Blackboard
+dashboard page ──postMessage──▶ bridge.js ──runtime.sendMessage──▶ background.js ──GET──▶ Blackboard
  (renders)                     (content script)                  (the only gate)
 ```
 
@@ -41,10 +41,12 @@ github.io page ──postMessage──▶ bridge.js ──runtime.sendMessage─
 ## Trying it
 
 1. `chrome://extensions` → Developer mode → **Load unpacked** → this directory.
-2. Open <https://ethan-phillips26.github.io/blackboard-dashboard/>, enter your
-   Blackboard address, allow access, sign in.
+2. Open <https://ethanphillips.dev/whiteboard/>, enter your Blackboard address, allow
+   access, sign in.
 
-The bridge is injected on that site and nowhere else. To work against a local build
-(`npm run dev:browser`), load a copy of this directory with `http://localhost/*` added
-to the content script's `matches` and a matching entry in `PAGE_ORIGINS`. Never
-publish that copy: any page on the machine could then read Blackboard through it.
+The bridge is injected on that path and nowhere else — not the rest of
+ethanphillips.dev, whose other Pages projects share its origin. To work against a
+local build (`npm run dev:browser`), load a copy of this directory with
+`http://localhost/*` added to the content script's `matches` and a matching entry in
+`PAGES` in `background.js`. Never publish that copy: any page on the machine could
+then read Blackboard through it.

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 
-const SOURCE = "https://github.com/ethan-phillips26/blackboard-dashboard/tree/main/extension";
+const SOURCE = "https://github.com/ethan-phillips26/whiteboard/tree/main/extension";
 const REMEMBERED = "whiteboard-host";
 
 const bare = (origin) => (origin ?? "").replace(/^https?:\/\//, "");
