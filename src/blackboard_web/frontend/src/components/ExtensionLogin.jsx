@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 
-const SOURCE = "https://github.com/ethan-phillips26/whiteboard/tree/main/extension";
+// Built into the site by vite.config.js, from the same commit as this page.
+const DOWNLOAD = "./whiteboard-connector.zip";
+// Firefox takes the zip as it is and Chromium wants it unzipped, so whichever
+// browser this is gets its own steps first.
+const FIREFOX = /firefox/i.test(navigator.userAgent);
 const REMEMBERED = "whiteboard-host";
 
 const bare = (origin) => (origin ?? "").replace(/^https?:\/\//, "");
@@ -84,22 +88,42 @@ export default function ExtensionLogin({ auth, onSignedIn }) {
 
   if (status?.state === "no-extension") {
     title = "Install the Whiteboard Connector";
+    const chromium = (
+      <section className="install-steps" key="chromium">
+        <h3>Chrome, Edge or Brave</h3>
+        <ol>
+          <li>Unzip the download somewhere it can stay.</li>
+          <li>Go to <code>chrome://extensions</code> and turn on <b>Developer mode</b>.</li>
+          <li>Click <b>Load unpacked</b> and choose the unzipped folder.</li>
+        </ol>
+      </section>
+    );
+    const firefox = (
+      <section className="install-steps" key="firefox">
+        <h3>Firefox</h3>
+        <ol>
+          <li>Go to <code>about:debugging#/runtime/this-firefox</code>.</li>
+          <li>Click <b>Load Temporary Add-on</b> and choose the downloaded zip.</li>
+        </ol>
+        <p className="note dim">Firefox removes it when it restarts, so repeat this each time.</p>
+      </section>
+    );
     body = (
       <>
         <p className="note">
-          This page can't read Blackboard by itself — browsers don't let one site
-          read another's data. The Whiteboard Connector extension does the
-          reading, using the Blackboard session already in this browser, and only
-          ever reads.
+          This page can't read Blackboard by itself, because browsers don't let one
+          site read another's data. The Whiteboard Connector extension does the
+          reading with the Blackboard session already in this browser. It only reads.
         </p>
+        <a className="btn primary login-submit" href={DOWNLOAD} download="whiteboard-connector.zip">
+          Download the extension
+        </a>
+        {FIREFOX ? [firefox, chromium] : [chromium, firefox]}
         <p className="note dim">
-          Get the extension from <a className="link" href={SOURCE} target="_blank"
-          rel="noreferrer">its folder on GitHub</a>. In Chrome or Edge, open the
-          extensions page, turn on developer mode and load that folder unpacked. In
-          Firefox, open about:debugging and load its manifest.json as a temporary
-          add-on.
+          Type those addresses into the address bar yourself; pages aren't allowed to
+          link to them.
         </p>
-        <button className="primary login-submit" onClick={() => window.location.reload()}>
+        <button className="login-submit" onClick={() => window.location.reload()}>
           I've installed it — reload
         </button>
       </>

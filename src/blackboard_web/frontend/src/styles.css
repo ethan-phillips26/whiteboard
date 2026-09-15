@@ -464,6 +464,17 @@ input[type="number"] { -moz-appearance: textfield; }
   padding-inline: 20px; font-weight: 600;
 }
 
+/* The install screen's per-browser steps. The browser's own addresses are set as
+   code and allowed to break anywhere: a page can't link to them, and at phone
+   width the long Firefox one would otherwise push the panel wider. */
+.install-steps { display: flex; flex-direction: column; gap: 6px; }
+.install-steps h3 { margin: 0; font-size: 13.5px; font-weight: 650; color: var(--ink); }
+.install-steps ol {
+  margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px;
+  font-size: 13.5px; color: var(--ink-2);
+}
+.install-steps code { font-size: 12px; overflow-wrap: anywhere; }
+
 /* ---------------------------------------------------------- stats / figures */
 
 /* The deadline card is wider than a figure needs, because it carries a title

@@ -14,7 +14,8 @@ The extension isn't in any store yet, so it's installed from this folder.
 
 **Chrome, Edge, Brave**
 
-1. Download this `extension` folder and unzip it somewhere it can stay.
+1. Download the zip from the Whiteboard page (it offers it when the extension is
+   missing), or copy this folder, and unzip it somewhere it can stay.
 2. Go to `chrome://extensions` and turn on **Developer mode**.
 3. Click **Load unpacked** and choose the folder.
 
@@ -24,7 +25,8 @@ extension's card.
 **Firefox**
 
 1. Go to `about:debugging#/runtime/this-firefox`.
-2. Click **Load Temporary Add-on** and choose `manifest.json` in this folder.
+2. Click **Load Temporary Add-on** and choose the downloaded zip, or `manifest.json`
+   in this folder.
 
 Firefox removes temporary add-ons when it restarts, so this has to be repeated each
 time.
