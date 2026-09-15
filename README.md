@@ -1,65 +1,47 @@
 # Whiteboard
 
-A read-only dashboard over Blackboard Learn — what's due, where you stand in each
-course, and a calendar feed you can subscribe to. Ships as a desktop app for
-Windows, macOS and Linux, as a static web page plus a browser extension, and as
-an MCP server so an agent can answer "what's due this week" against the same
-data.
+A dashboard for Blackboard Learn: what's due, your grades in each course, announcements,
+course materials and a calendar you can export. It only reads from Blackboard and never
+submits or changes anything.
 
-Unofficial, and not affiliated with Anthology Inc.
+Unofficial, and not affiliated with Anthology Inc. Check your school's acceptable-use
+policy before relying on it.
 
-**Everything is read-only.** The Blackboard client only ever issues `GET`. Nothing
-here submits, posts, or changes anything on the university's side.
+There are three ways to use it.
 
-## How it works
+## 1. In the browser
 
-Two front ends sit on one Blackboard client:
+Open <https://ethanphillips.dev/whiteboard/>. It needs the Whiteboard Connector
+extension, which does the reading from Blackboard. See
+[extension/README.md](extension/README.md) to install it.
 
-```
-blackboard_mcp/        the Blackboard layer
-  client.py            async REST client; GET only; cookie auth
-  server.py            8 MCP tools over that client
-  session.py           cookie persistence, expiry maths, .env writes
-  paths.py             the one place that decides where state lives
+Everything stays in your browser. Google Docs export isn't available here.
 
-blackboard_web/        the dashboard
-  app.py               HTTP routes
-  sync.py              fetch → cache → serve
-  cache.py             JSON store on disk, per-kind TTLs
-  grades.py            weighted grade maths (pure)
-  frontend/            React + Vite
-    src/browser/       the same routes, answered in the page (browser build)
+## 2. Desktop app
 
-extension/             Whiteboard Connector: the browser build's way to Blackboard
-src-tauri/             the desktop shell (Rust, ~450 lines)
+Windows, macOS and Linux. It signs you in through your school's normal login page.
+
+Building it needs Python 3.12, [uv](https://docs.astral.sh/uv/), Node 22+ and Rust:
+
+```bash
+uv sync
+npm ci
+npm run app       # builds the app
+npm run bundle    # installers go in src-tauri/target/release/bundle/
 ```
 
-**Data flow.** Every read goes through a JSON cache on disk with per-kind TTLs, so
-opening the app costs nothing and only an explicit refresh goes back to
-Blackboard. The whole cache is a few hundred KB. Grade maths is pure and runs
-locally — Blackboard supplies the structure and your scores, and the percentages
-are computed here. Blackboard doesn't say what each gradebook category is worth,
-so a course is weighted by points until you enter the syllabus's percentages in
-its settings.
+## 3. MCP server
 
-**Authentication is a cookie.** Blackboard's OAuth2 route needs an Application ID
-that your university's administrator has to whitelist, so this uses a session
-cookie instead — the same one your browser holds.
+Lets an AI agent answer questions like "what's due this week":
 
-**Signing in uses a real browser window.** The desktop shell opens your
-institution's own login page in a webview and reads the session cookie out of it.
-There is no form to recognise and no second factor to anticipate, so it works at
-any university rather than only the ones somebody could test. Whatever your school
-asks for — a push, a code, a passkey — happens in an ordinary browser window.
+```bash
+claude mcp add blackboard -- uv --directory /path/to/blackboard run blackboard-mcp
+```
 
-**The desktop app is a thin shell.** Tauri starts the Python server as a child
-process, waits for it to answer, and points a window at it. The server is frozen
-with PyInstaller and bundled as a resource. The shell holds an open stdin pipe the
-server watches, so the server dies with the window however the window goes.
+It has no way to sign in by itself. It uses the session the desktop app saved, or a
+`BB_COOKIE` you set yourself (see below).
 
-## Quick start
-
-Requires Python 3.12, [uv](https://docs.astral.sh/uv/), and Node 22+.
+## Running the local server
 
 ```bash
 uv sync
@@ -67,142 +49,41 @@ cd src/blackboard_web/frontend && npm ci && npm run build && cd -
 uv run blackboard-web --open
 ```
 
-That serves the dashboard on `http://127.0.0.1:8765`.
-
-In a plain browser tab there is no window for the shell to open, so set a cookie
-by hand the first time: log into Blackboard, open DevTools → Network, copy the
-`Cookie` request header from any request to your Blackboard domain, and put it in
-`.env` as `BB_COOKIE`, along with `BB_HOST`. Once the desktop app has signed in
-once, both front ends share the cookie and this stops being necessary.
-
-## Working on the frontend
-
-```bash
-npm run server    # the API on :8765
-npm run dev       # Vite on :5173, hot reload, proxies /api to :8765
-```
-
-Open `http://127.0.0.1:5173`. Editing anything under `frontend/src` updates
-immediately; `:8765` serves the last built copy and will not.
-
-## Browser build
-
-The same dashboard as static files — GitHub Pages, no server. A web page can't
-read Blackboard itself (CORS, and pages can't send cookies), so the Whiteboard
-Connector extension in `extension/` makes every request with the session already
-in your browser, and hands the results to the page. Everything the server keeps on
-disk lives in the browser's IndexedDB instead. Google Docs is left out: its
-sign-in needs a server to hold the secret.
-
-```bash
-cd src/blackboard_web/frontend
-npm run build:browser   # -> dist-browser/
-npm run dev:browser     # Vite on :5173, no FastAPI needed
-```
-
-The published extension only talks to the Pages site. Working on a local build needs a
-copy of `extension/` that also allows `localhost` — see `extension/README.md`.
-
-Load `extension/` unpacked (Chrome/Edge) or as a temporary add-on (Firefox), open
-the page, and it walks you through connecting and signing in. The `pages`
-workflow deploys `dist-browser/` on every push to `main` once Pages is set to
-"GitHub Actions" in the repository settings.
-
-It is served at <https://ethanphillips.dev/whiteboard/>. The portfolio repo
-(`ethan-phillips26.github.io`) is the user site and owns the domain, so GitHub serves
-every project's Pages site beneath it at `/<repo-name>`; this repo is named `whiteboard`
-for that reason. The extension only answers that exact path.
-
-## Desktop app
-
-```bash
-npm ci
-npm run app       # build the frontend, freeze the sidecar, build the shell
-npm run bundle    # installers under src-tauri/target/release/bundle/
-npm run shell     # the shell against an already-frozen sidecar
-```
-
-**Order matters.** `tauri-build` copies the frozen sidecar into `target/` at Rust
-build time, so freezing after cargo leaves the app running the previous server.
-`npm run app` does both in the right order; don't run them separately.
-
-Run it with an explicit state directory — a frozen binary has no `.env` beside it,
-so without one you get an empty first-run:
-
-```bash
-BB_STATE_DIR=~/blackboard-state ./src-tauri/target/release/whiteboard
-```
-
-On Arch, AppImage bundling needs `NO_STRIP=true`: the bundled `strip` can't read
-the `.relr.dyn` sections a current toolchain emits. CI builds on `ubuntu-22.04`,
-where it doesn't arise.
-
-## MCP server
-
-```bash
-claude mcp add blackboard -- uv --directory /path/to/blackboard run blackboard-mcp
-```
-
-Eight tools: `check_connection`, `list_courses`, `list_due_dates`,
-`get_assignment`, `download_assignment_files`, `browse_course_content`,
-`list_announcements`, `session_status`. Start with `list_due_dates` — it returns a
-`calendar_event` block per item, plus the `content_id` that
-`download_assignment_files` needs.
-
-The MCP server has no window, so it can't sign in on its own. It reads whatever
-cookie the desktop app last wrote, or `BB_COOKIE`.
+This serves the dashboard at `http://127.0.0.1:8765`. Without the desktop app you need
+to give it a session: log into Blackboard, open DevTools → Network, copy the `Cookie`
+header from any request to your Blackboard site, and put it in `.env` as `BB_COOKIE`
+along with `BB_HOST`.
 
 ## Configuration
 
-`.env` lives in the state directory (see below). `BB_HOST` and `BB_COOKIE` are the
-only ones that matter; everything else has a working default.
+`.env` lives in the app's data folder: `~/.local/share/blackboard` on Linux,
+`~/Library/Application Support/blackboard` on macOS, `%APPDATA%\blackboard` on Windows.
 
-| key | what it does |
+| Setting | Purpose |
 | --- | --- |
-| `BB_HOST` | your school's Blackboard hostname |
-| `BB_COOKIE` | session cookie; the desktop app fills this in |
-| `BB_STATE_DIR` | override where all state lives |
-| `BB_KEEPALIVE_MINUTES` | how often to ping so the session doesn't idle out (default 45) |
-| `BB_GOOGLE_CLIENT_ID` / `_SECRET` | optional, for "Open in Docs" |
+| `BB_HOST` | your school's Blackboard address |
+| `BB_COOKIE` | your Blackboard session (the desktop app fills this in) |
+| `BB_STATE_DIR` | use a different data folder |
+| `BB_KEEPALIVE_MINUTES` | how often to keep the session alive (default 45) |
+| `BB_GOOGLE_CLIENT_ID` / `BB_GOOGLE_CLIENT_SECRET` | optional, for "Open in Docs" |
 
-See `.env.example` for the rest.
+## Grades
 
-## Where state lives
+Blackboard doesn't say how much each category of a course is worth, so grades are
+weighted by points until you enter the percentages from your syllabus in that course's
+settings.
 
-One directory, decided by `paths.py` — `.env`, the session cookie, the cache and
-downloads all resolve through it, never against the working directory, because a
-packaged build doesn't control that.
-
-| | |
-| --- | --- |
-| Linux | `~/.local/share/blackboard` |
-| macOS | `~/Library/Application Support/blackboard` |
-| Windows | `%APPDATA%\blackboard` |
-
-A source checkout with an `.env` already beside it keeps using itself.
-`BB_STATE_DIR` overrides either.
-
-## Tests
-
-Standalone scripts, not pytest; each exits non-zero on failure.
+## Development
 
 ```bash
-uv run python tests/test_web.py         # cache, auth, category weights
-uv run python tests/test_grades.py      # weighted grade maths
-uv run python tests/test_end_to_end.py  # every MCP tool against a stub server
+cd src/blackboard_web/frontend
+npm run dev             # dashboard with hot reload (run `npm run server` from the root too)
+npm run build:browser   # the browser version, into dist-browser/
+
+uv run python tests/test_web.py
+uv run python tests/test_grades.py
+uv run python tests/test_end_to_end.py
 ```
 
-`tests/stub_blackboard.py` is a fake Blackboard instance — tests never touch the
-real one.
-
-## Limitations
-
-- Blackboard doesn't expose how categories are weighted, so a course is weighted
-  by points until you type the syllabus's percentages into its settings.
-- The browser build can't fetch a file Blackboard keeps on a separate storage
-  server the extension has no permission for; "Open in Blackboard" still works.
-- Blackboard Original and Ultra differ in what they expose. Links come from
-  Blackboard's own `links[rel=alternate]`, never built by hand.
-- Use this on your own account. It's your data, but automated access may still sit
-  outside your institution's acceptable-use policy — worth a look before you lean
-  on it.
+The browser version is deployed to GitHub Pages by `.github/workflows/pages.yml` on every
+push to `main`.

@@ -1,52 +1,40 @@
-# Whiteboard Connector (prototype)
+# Whiteboard Connector
 
-A browser extension that lets a statically hosted Whiteboard page — GitHub Pages, no
-server — read Blackboard using the session the person already has in their browser.
+The browser extension that [Whiteboard](https://ethanphillips.dev/whiteboard/) needs to
+read your Blackboard courses. Browsers don't let one website read another site's data,
+so the extension fetches your courses, due dates, grades and files from Blackboard,
+using the session already in your browser, and passes them to the Whiteboard page.
 
-## Why an extension
+It only reads. It can't submit, post or change anything in Blackboard, and it only
+works with the Whiteboard page. Nothing is sent anywhere else.
 
-A web page cannot read Blackboard itself:
+## Install
 
-- **CORS.** Blackboard answers `Access-Control-Allow-Origin: <its own origin>`, so the
-  browser withholds every response from any other site.
-- **Forbidden headers.** A page cannot set `Cookie`, so holding a copy of the session
-  would not help it.
+The extension isn't in any store yet, so it's installed from this folder.
 
-An extension with host permission for the Blackboard site is exempt from both: its
-requests carry the person's cookies and CORS does not apply.
+**Chrome, Edge, Brave**
 
-One more trap: **Blackboard 403s any request whose `Origin` is not its own**, including
-`chrome-extension://…`. Chrome sends no `Origin` on an extension's GETs, so it never
-comes up there. `background.js` still strips the header with a `declarativeNetRequest`
-session rule, scoped to requests made outside any tab, as insurance for a browser that
-does send it — that has not been measured in Firefox.
+1. Download this `extension` folder and unzip it somewhere it can stay.
+2. Go to `chrome://extensions` and turn on **Developer mode**.
+3. Click **Load unpacked** and choose the folder.
 
-## How it fits together
+To update it, replace the folder's contents and click the reload icon on the
+extension's card.
 
-```
-dashboard page ──postMessage──▶ bridge.js ──runtime.sendMessage──▶ background.js ──GET──▶ Blackboard
- (renders)                     (content script)                  (the only gate)
-```
+**Firefox**
 
-- `background.js` is the only code that talks to Blackboard, and it only does `GET` under
-  `/learn/api/public/` on the one host the person connected. Any other path, host or
-  request type is refused — that is where the read-only rule is enforced.
-- `bridge.js` relays for the page. Firefox has no `externally_connectable` for web
-  pages, so a content script is the portable way in.
-- `connect.html` asks for the host permission. A permission prompt has to come from a
-  click on one of the extension's own pages, so the dashboard's Connect opens it.
-- Sign-in is Blackboard's own front door in a normal tab. The worker checks `users/me`
-  (a `BbRouter` alone proves nothing) and closes the tab once it answers.
+1. Go to `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on** and choose `manifest.json` in this folder.
 
-## Trying it
+Firefox removes temporary add-ons when it restarts, so this has to be repeated each
+time.
 
-1. `chrome://extensions` → Developer mode → **Load unpacked** → this directory.
-2. Open <https://ethanphillips.dev/whiteboard/>, enter your Blackboard address, allow
-   access, sign in.
+## Use
 
-The bridge is injected on that path and nowhere else — not the rest of
-ethanphillips.dev, whose other Pages projects share its origin. To work against a
-local build (`npm run dev:browser`), load a copy of this directory with
-`http://localhost/*` added to the content script's `matches` and a matching entry in
-`PAGES` in `background.js`. Never publish that copy: any page on the machine could
-then read Blackboard through it.
+1. Open <https://ethanphillips.dev/whiteboard/>.
+2. Enter your school's Blackboard address and click **Connect**.
+3. Click **Allow access** on the page the extension opens.
+4. Sign in to Blackboard in the tab that opens. It closes itself when you're done.
+
+If a file won't download, the error names the server Blackboard keeps it on. Click the
+extension's icon, press **Allow access** again, and retry.
