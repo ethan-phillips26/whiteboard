@@ -125,6 +125,9 @@ export const api = {
   demo: DEMO,
   assignment: (courseId, contentId) => sync.assignment(courseId, contentId),
   fetchFiles: (courseId, contentId) => sync.downloadFiles(courseId, contentId),
+  submissions: (courseId, columnId, refresh = false) =>
+    sync.submissions(courseId, columnId, refresh),
+  attemptFile: (courseId, attemptId, file) => sync.attemptFile(courseId, attemptId, file),
   refresh: () => sync.refresh(true),
   /** Delete everything fetched, derived or downloaded. The login is not touched. */
   resetData: async () => ({

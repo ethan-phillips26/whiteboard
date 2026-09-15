@@ -51,7 +51,7 @@ export default function CourseOverview({ standing, assignments, announcements,
                     onClick={() =>
                       onOpenAssignment({
                         courseId: a.course_id, contentId: a.content_id,
-                        title: a.title, course: a.course,
+                        columnId: a.column_id, title: a.title, course: a.course,
                         points: a.points_possible, due,
                       })
                     }

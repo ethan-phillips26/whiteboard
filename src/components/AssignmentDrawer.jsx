@@ -8,6 +8,7 @@ import BbLink from "./BbLink.jsx";
 import DocumentViewer from "./DocumentViewer.jsx";
 import RichText from "./RichText.jsx";
 import { Sep } from "./Sep.jsx";
+import Submissions from "./Submissions.jsx";
 
 /**
  * The downloaded copy of one attachment. It is found by the name Blackboard gave
@@ -133,6 +134,17 @@ export default function AssignmentDrawer({ target, onClose }) {
 
   const attachments = detail?.attachments ?? [];
 
+  // Every opener that knows the gradebook column passes it; the assignment
+  // itself names it too, for one that did not.
+  const columnId = target.columnId ?? detail?.grade_column_id ?? null;
+  const submissions = courseId && columnId ? (
+    <Submissions courseId={courseId} columnId={columnId} possible={target.points}
+                 onView={setViewing} />
+  ) : null;
+  // Opened from a grade, the submission is what was asked for, so it leads
+  // rather than waiting under the instructions.
+  const first = target.focus === "submissions";
+
   return (
     <>
       <div className="scrim" onClick={onClose} />
@@ -156,6 +168,8 @@ export default function AssignmentDrawer({ target, onClose }) {
         </div>
 
         <div className="drawer-body">
+          {first && submissions}
+
           {!contentId && (
             <p className="note">
               This is a manually created gradebook column — there is no content item
@@ -245,6 +259,8 @@ export default function AssignmentDrawer({ target, onClose }) {
               </div>
             </>
           )}
+
+          {!first && submissions}
         </div>
       </aside>
 

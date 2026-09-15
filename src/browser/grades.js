@@ -38,7 +38,7 @@ export function buildBreakdown(categories, columns, grades, weights = {}, assign
       bucket.graded_possible += possible;
     }
     bucket.columns.push({
-      column_id: col.id ?? null, name: col.name ?? null, possible,
+      column_id: col.id ?? null, content_id: col.contentId ?? null, name: col.name ?? null, possible,
       score: graded ? score : null, graded, due: col.grading?.due ?? null,
     });
   }

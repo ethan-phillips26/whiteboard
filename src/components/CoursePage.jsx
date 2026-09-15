@@ -149,7 +149,8 @@ export default function CoursePage({ course, standing, tab, assignments,
 
       {active === "grades" && (
         standing?.accessible ? (
-          <CourseGrades course={course} standing={standing} onChange={onChange} />
+          <CourseGrades course={course} standing={standing} onChange={onChange}
+                        onOpenAssignment={onOpenAssignment} />
         ) : (
           <section className="panel">
             <p className="note">

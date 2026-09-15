@@ -212,6 +212,17 @@ export class Client {
     }
   }
 
+  /** One gradebook column: how many attempts it allows and which one counts. */
+  column(courseId, columnId) {
+    return this.getJson(`/learn/api/public/v2/courses/${courseId}/gradebook/columns/${columnId}`);
+  }
+
+  /** The attempts at one column. A student is only ever given their own. */
+  attempts(courseId, columnId) {
+    return this.paged(
+      `/learn/api/public/v2/courses/${courseId}/gradebook/columns/${columnId}/attempts`);
+  }
+
   contents(courseId, contentId = null) {
     const path = contentId
       ? `/learn/api/public/v1/courses/${courseId}/contents/${contentId}/children`

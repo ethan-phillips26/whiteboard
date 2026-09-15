@@ -174,6 +174,9 @@ export default function App() {
     setDrawer({
       courseId: source.courseId ?? source.course_id ?? null,
       contentId: source.contentId ?? source.content_id ?? null,
+      columnId: source.columnId ?? source.column_id ?? null,
+      // Which part of the drawer was asked for: a grade opens on its submissions.
+      focus: source.focus ?? null,
       title: source.title ?? source.summary ?? "",
       course: source.course ?? "",
       points: source.points ?? source.points_possible ?? null,

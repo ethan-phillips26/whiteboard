@@ -890,6 +890,7 @@ table.items tr:hover td { background: var(--hover); }
   text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
   color: var(--ink-2); width: 1%;
 }
+.it-sub { width: 1%; white-space: nowrap; text-align: right; padding-left: 14px !important; }
 
 .calc { margin-top: 2px; }
 .calc .controls {
@@ -990,7 +991,26 @@ table.items tr:hover td { background: var(--hover); }
   max-width: 78ch;
 }
 
-.drawer-files { margin-top: 24px; border-top: 1px solid var(--rule); padding-top: 16px; }
+.drawer-files, .drawer-section { margin-top: 24px; border-top: 1px solid var(--rule); padding-top: 16px; }
+/* A section that leads the drawer has nothing above it to be ruled off from. */
+.drawer-body > .drawer-section:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
+
+/* One attempt at a time: the grade on the heading line, the facts beneath it,
+   then what was said about it and what was handed in. */
+.attempt { padding: 14px 0 16px; border-top: 1px solid var(--rule); }
+.panel-head + .attempt { border-top: 0; padding-top: 2px; }
+.attempt-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.attempt-head b { font-weight: 600; }
+.attempt-grade { margin-left: auto; font: 600 15px/1 var(--font-mono); }
+.attempt-grade small { font: 400 12px/1 var(--font-mono); color: var(--ink-3); }
+.attempt-facts { margin-top: 12px; gap: 6px; }
+.attempt-facts dt { width: 96px; }
+.attempt-part { margin-top: 14px; }
+.attempt-part > .label, .attempt-files > .label { display: block; margin-bottom: 6px; }
+/* The instructor's words are the reason to open this, so they are ruled off. */
+.attempt-part.feedback .instructions { padding-left: 12px; box-shadow: inset 2px 0 0 var(--ink); }
+.attempt-files { margin-top: 14px; }
+.attempt-files > .label + .filerow { border-top: 0; padding-top: 2px; }
 
 /* A handout is a name and the two things you can do with it. The actions live
    on the row rather than one above the list and one beside each name, which was

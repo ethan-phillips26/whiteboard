@@ -1,6 +1,7 @@
 // Fetch through the extension, remember everything in IndexedDB, and only ask
 // Blackboard again when an entry goes stale.
 
+import * as A from "./attempts.js";
 import * as E from "./edits.js";
 import * as G from "./grades.js";
 import * as store from "./store.js";
@@ -452,6 +453,52 @@ export async function assignment(courseId, contentId, refresh = false) {
   return { ...present(detail), cached: false };
 }
 
+/* -------------------------------------------------------------- submissions */
+
+/** Your attempts at one gradebook column, with what was said about them. Kept as
+ * long as grades are, since a grade arriving is exactly what changes one. */
+// Bumped whenever the stored shape changes. 5: the grade's own feedback and any
+// file returned with feedback, and nothing about the files handed in.
+const SUBMISSIONS_SCHEMA = 5;
+
+export async function submissions(courseId, columnId, refresh = false) {
+  const key = `submissions_${courseId}_${columnId}`;
+  const stored = await store.getData(key);
+  if (!refresh && stored?.schema === SUBMISSIONS_SCHEMA && (await store.fresh(key, "grades"))) {
+    return { ...stored, cached: true };
+  }
+  const bb = await open();
+  const uid = await bb.userId();
+  const [col, got, grades] = await Promise.allSettled([
+    bb.column(courseId, columnId),
+    bb.attempts(courseId, columnId),
+    bb.gradebookGrades(courseId, uid),
+  ]);
+  for (const r of [col, got, grades]) {
+    if (r.status === "rejected" && r.reason instanceof AuthError) throw r.reason;
+  }
+  const column = A.columnFromApi(col.status === "fulfilled" ? col.value : null);
+  // The grade can say something no attempt does, or stand with no attempt at all.
+  const grade = A.gradeFromApi(grades.status === "fulfilled" ? grades.value[columnId] : null);
+  if (got.status === "rejected") {
+    // Some schools close attempts to students through the API altogether. That
+    // is an answer about the school, and the page says so rather than erroring.
+    if (got.reason instanceof ForbiddenError) {
+      return { column, grade, attempts: [], closed: true, cached: false };
+    }
+    throw new BlackboardError(
+      `Blackboard would not return the submissions: ${got.reason?.message ?? got.reason}`);
+  }
+  // Only ever your own, whatever role Blackboard thinks you hold in the course.
+  const mine = got.value.filter((a) => !a.userId || a.userId === uid);
+  const attempts = mine.map((a) => A.attemptFromApi(a));
+  // Oldest first, so "Attempt 1" is the first one you made.
+  attempts.sort((a, b) => cmp(a.started ?? "", b.started ?? ""));
+  const out = { schema: SUBMISSIONS_SCHEMA, column, grade, attempts, closed: false };
+  await store.write(key, out);
+  return { ...out, cached: false };
+}
+
 /* -------------------------------------------------------------------- files */
 
 // Markup a course wrote is text to read, not a page to run: served as its own
@@ -540,12 +587,32 @@ export function downloadFiles(courseId, contentId) {
   return downloads.get(key);
 }
 
+/** A file returned with feedback, fetched once per tab like a handout. Ultra
+ * returns it as a Blackboard file link inside the feedback, fetched the way an
+ * inline handout is. */
+export function attemptFile(courseId, attemptId, file) {
+  const key = `attempt/${attemptId}/${file.url}`;
+  if (!downloads.has(key)) {
+    const pending = (async () => {
+      const bb = await open();
+      const got = await bb.download(file.url);
+      const name = safeFilename(
+        file.name || filenameFromDisposition(got.disposition) || "submission", "submission");
+      return asFile(name, got);
+    })();
+    downloads.set(key, pending);
+    pending.catch(() => downloads.delete(key));
+  }
+  return downloads.get(key);
+}
+
 /** Drop everything this build holds — cache, corrections, downloads — and say how
  * many stored entries went. */
 export async function forget() {
   const held = await Promise.allSettled(downloads.values());
   for (const r of held) {
-    for (const f of r.value?.downloaded ?? []) {
+    // An item's downloads are a set; a submitted file is held on its own.
+    for (const f of r.value?.downloaded ?? (r.value?.url ? [r.value] : [])) {
       URL.revokeObjectURL(f.url);
       URL.revokeObjectURL(f.view);
     }

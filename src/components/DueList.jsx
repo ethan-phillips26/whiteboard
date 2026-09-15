@@ -39,7 +39,7 @@ export default function DueList({ assignments, firstSeen, onOpenAssignment, orde
                 key={a.column_id ?? a.content_id ?? a.title}
                 onClick={() =>
                   onOpenAssignment({
-                    courseId: a.course_id, contentId: a.content_id,
+                    courseId: a.course_id, contentId: a.content_id, columnId: a.column_id,
                     title: a.title, course: a.course, points: a.points_possible,
                     due,
                   })

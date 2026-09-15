@@ -10,7 +10,7 @@ import GradeCalculator from "./GradeCalculator.jsx";
  * in this course's settings the grade is weighted by points, the same total
  * Blackboard's own gradebook shows.
  */
-export default function CourseGrades({ course, standing }) {
+export default function CourseGrades({ course, standing, onOpenAssignment }) {
   const weighted = standing?.weighted_by === "custom";
   // Once any category has a percentage, one left without counts for nothing,
   // and that is worth saying rather than leaving to be noticed.
@@ -84,6 +84,21 @@ export default function CourseGrades({ course, standing }) {
                     <td className="it-cat"><span className="course">{c.title}</span></td>
                     <td className="it-score">
                       {col.graded ? `${col.score} / ${col.possible}` : `— / ${col.possible}`}
+                    </td>
+                    <td className="it-sub">
+                      {/* The same drawer the deadlines open, led by what was handed in. */}
+                      <button
+                        className="linkish"
+                        aria-label={`Submissions for ${col.name}`}
+                        onClick={() => onOpenAssignment?.({
+                          courseId: course.course_id, columnId: col.column_id,
+                          contentId: col.content_id, title: col.name, course: course.label,
+                          points: col.possible, due: col.due ? new Date(col.due) : null,
+                          focus: "submissions",
+                        })}
+                      >
+                        Submissions
+                      </button>
                     </td>
                   </tr>
                 ))

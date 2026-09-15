@@ -46,6 +46,9 @@ await build({
       export { default as RichText, clamp, visibleLength }
         from "./components/RichText.jsx";
       export { default as StatRow } from "./components/StatRow.jsx";
+      export { default as CourseGrades } from "./components/CourseGrades.jsx";
+      export { default as Submissions } from "./components/Submissions.jsx";
+      export { attemptFromApi, columnFromApi, gradeFromApi } from "./browser/attempts.js";
     `,
     resolveDir: SRC,
     loader: "jsx",
@@ -59,7 +62,8 @@ await build({
   external: ["react", "react-dom", "react/jsx-runtime"],
 });
 const { CoursePage, MaterialTree, filterTree, countLeaves, RichText, clamp,
-        visibleLength, StatRow } = await import(pathToFileURL(out).href);
+        visibleLength, StatRow, CourseGrades, Submissions, attemptFromApi,
+        columnFromApi, gradeFromApi } = await import(pathToFileURL(out).href);
 
 const html = (element) => renderToStaticMarkup(element);
 
@@ -261,6 +265,70 @@ check("the GPA averages the grade points of the courses that have a grade",
 const quiet = html(h(StatRow, { assignments: [], courses: [] }));
 check("with nothing due it still draws, rather than blanking",
       quiet.includes("Nothing is due") && quiet.includes('class="band-detail"'), quiet);
+
+console.log("\n[submissions] what was handed in");
+// htmlToText needs the browser's DOMParser; this stands in for it, and what is
+// checked is that the markup goes through the reader, not how the reader works.
+const read = (s) => s.replace(/<a href="([^"]+)">([^<]*)<\/a>/g, "[$2]($1)").replace(/<[^>]+>/g, "");
+const marked = attemptFromApi({
+  id: "_a1", userId: "_u1", status: "Completed",
+  displayGrade: { scaleType: "Score", score: 46 }, score: 46,
+  feedback: "<p>Good work. See <a href=\"https://x.edu/rubric\">the rubric</a>.</p>",
+  studentComments: "<p>Submitted as a PDF.</p>",
+  created: "2026-09-01T02:00:00Z", attemptDate: "2026-09-01T02:00:00Z",
+  attemptReceipt: { receiptId: "r-1", submissionTotalSize: 2048 },
+}, { toText: read, embedded: () => [] });
+check("a graded attempt says so, with its score",
+      marked.status_label === "graded" && marked.tone === "ok" && marked.score === 46,
+      JSON.stringify(marked));
+check("feedback and comments are read as text, not shown as markup",
+      marked.feedback.includes("Good work.") && marked.feedback.includes("(https://x.edu/rubric)")
+      && !marked.feedback.includes("<p>") && marked.comments === "Submitted as a PDF.",
+      JSON.stringify(marked));
+check("and a part nobody wrote stays empty rather than blank",
+      marked.submission === null, JSON.stringify(marked));
+check("nothing about the files handed in is kept — no list, size or receipt",
+      !("files" in marked) && !("size" in marked) && !("receipt" in marked),
+      JSON.stringify(marked));
+const waiting = attemptFromApi({ id: "_a2", status: "NeedsGrading" });
+check("an ungraded submission has no score and says it is waiting",
+      waiting.score === null && waiting.status_label === "submitted, not graded yet"
+      && waiting.feedback === null, JSON.stringify(waiting));
+check("a status Blackboard adds later is shown rather than dropped",
+      attemptFromApi({ status: "SomethingNew" }).status_label === "SomethingNew");
+const col = columnFromApi({ name: "HW 1", score: { possible: 50 },
+                            grading: { attemptsAllowed: 2, scoringModel: "Highest" } });
+check("the column says how many attempts and which one counts",
+      col.attempts_allowed === 2 && col.scoring === "the highest attempt" && col.possible === 50,
+      JSON.stringify(col));
+check("an absent limit is not claimed to be anything",
+      columnFromApi({ grading: { attemptsAllowed: 0 } }).attempts_allowed === null);
+const ESSAY = "https://bb.x/bbcswebdav/xid-1/essay.pdf";
+const MARKED = "https://bb.x/bbcswebdav/xid-2/essay-marked.pdf";
+const linked = (h) => [[ESSAY, "essay.pdf"], [MARKED, "essay-marked.pdf"]]
+  .filter(([url]) => h.includes(url)).map(([url, filename]) => ({ url, filename }));
+const ultra = attemptFromApi({
+  id: "_a3", status: "Completed", score: 40,
+  studentSubmission: `<p>Attached.</p><a href="${ESSAY}">essay.pdf</a>`,
+  feedback: `<p>See my notes.</p><a href="${MARKED}">essay-marked.pdf</a>`,
+}, { toText: read, embedded: linked });
+check("a file linked inside the submission is not listed",
+      !("files" in ultra), JSON.stringify(ultra));
+check("a marked-up file returned with the feedback can be opened too",
+      ultra.feedback_files.length === 1 && ultra.feedback_files[0].name === "essay-marked.pdf"
+      && ultra.feedback.includes("See my notes."), JSON.stringify(ultra));
+const onGrade = gradeFromApi({ score: 9, feedback: "<p>Present every week.</p>" },
+                             { toText: read, embedded: () => [] });
+check("feedback left on the grade itself, with no attempt, is kept",
+      onGrade.feedback === "Present every week." && onGrade.score === 9, JSON.stringify(onGrade));
+check("a column with no grade has no grade feedback", gradeFromApi(null) === null);
+const gradesTab = html(h(CourseGrades, { course: COURSE, standing: STANDING }));
+check("every gradebook row offers its submissions",
+      (gradesTab.match(/>Submissions</g) ?? []).length === 2
+      && gradesTab.includes('aria-label="Submissions for Quiz 3"'), gradesTab);
+check("the submissions section draws its loading state without a crash",
+      html(h(Submissions, { courseId: "_11_1", columnId: "_c1_1", onView: () => {} }))
+        .includes("Reading your submissions"));
 
 console.log("\n[links] course text becomes clickable");
 const ADVISE = "https://career-advising.ndsu.edu/bisonadvise/";

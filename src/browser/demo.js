@@ -278,7 +278,8 @@ function fileBody(name) {
 function build() {
   const world = { memberships: [], columns: {}, categories: {}, grades: {}, top: {},
                   items: new Map(), children: new Map(), attachments: new Map(),
-                  files: new Map(), announcements: {} };
+                  files: new Map(), announcements: {},
+                  attempts: {} };
   const embed = (cid, name) =>
     `<p><a href="${HOST}/bbcswebdav/xid-${cid}/${encodeURIComponent(name)}" ` +
     `data-bbtype="attachment" data-bbfile='${JSON.stringify({ fileName: name, mimeType: mime(name) })}'>` +
@@ -301,7 +302,8 @@ function build() {
       return {
         id, name: c.name, contentId: c.content ? `${cid}_${c.content}` : null,
         gradebookCategoryId: `${cid}_${c.cat}`, score: { possible: c.possible },
-        grading: { type: "Attempts", ...(c.due != null ? { due: at(c.due) } : {}) },
+        grading: { type: "Attempts", attemptsAllowed: 2, scoringModel: "Last",
+                   ...(c.due != null ? { due: at(c.due) } : {}) },
       };
     }).concat({ id: `${cid}_total`, name: "Weighted Total", score: { possible: 100 },
                 scoreProviderHandle: "resource/x-bb-calculatedgrade",
@@ -309,10 +311,50 @@ function build() {
     world.grades[cid] = course.columns.flatMap((c, i) => {
       const columnId = `${cid}_col${i + 1}`;
       if (c.score != null) {
+        // Undated work is graded straight from the gradebook, so its feedback is
+        // on the grade, with no attempt behind it.
         return [{ userId: USER.id, columnId, status: "Graded", score: c.score,
-                  displayGrade: { score: c.score } }];
+                  displayGrade: { score: c.score },
+                  ...(c.due == null
+                    ? { feedback: "<p>Present and engaged in every lab. Keep it up.</p>" } : {}) }];
       }
       return c.status ? [{ userId: USER.id, columnId, status: c.status }] : [];
+    });
+
+    // What was handed in: an attempt for every dated column with a grade or a
+    // submission, and a resubmission on each course's first column so more than
+    // one attempt can be seen.
+    course.columns.forEach((c, i) => {
+      if (c.due == null || (c.score == null && !c.status)) return;
+      const columnId = `${cid}_col${i + 1}`;
+      const slug = c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const tries = i === 0 && c.score != null ? 2 : 1;
+      world.attempts[columnId] = Array.from({ length: tries }, (_, n) => {
+        const id = `${columnId}_att${n + 1}`;
+        const last = n === tries - 1;
+        const score = c.score == null ? null : last ? c.score : Math.max(0, c.score - 6);
+        const handedIn = at(c.due - (tries - 1 - n) - 1, 21, 40 + n * 7);
+        return {
+          id, userId: USER.id,
+          status: score == null ? "NeedsGrading" : "Completed",
+          ...(score == null ? {} : {
+            score, displayGrade: { scaleType: "Score", score },
+            feedback: last
+              ? `<p>Good work — ${Math.round((100 * score) / c.possible)}%. ` +
+                "See the margin notes on page 2 for what to tighten.</p>" +
+                // A marked-up copy handed back, the Ultra way.
+                (tries > 1 ? embed(cid, `${slug}-marked.pdf`) : "")
+              : "<p>Close. Fix the two issues marked in red and resubmit.</p>",
+          }),
+          studentComments: n === 0
+            ? "<p>Submitted as a PDF.</p>"
+            : "<p>Resubmitted with the corrections from the first attempt.</p>",
+          created: handedIn, attemptDate: handedIn,
+          modified: score == null ? handedIn : at(c.due + 2, 10, 5),
+          attemptReceipt: { receiptId: `demo-${id}`, submissionDate: handedIn,
+                            submissionTotalSize: 48213 + i * 1377 },
+        };
+      });
     });
 
     const walk = (nodes, parentId) => nodes.map((node, i) => {
@@ -363,6 +405,13 @@ function get(path) {
   if ((m = p.match(/^\/v1\/users\/[^/]+\/courses$/))) return results(world.memberships);
   if ((m = p.match(/^\/v1\/terms\/([^/]+)$/))) return m[1] === TERM.id ? ok(TERM) : notFound;
   if ((m = p.match(/^\/v2\/courses\/([^/]+)\/gradebook\/columns$/))) return results(world.columns[m[1]] ?? []);
+  if ((m = p.match(/^\/v2\/courses\/[^/]+\/gradebook\/columns\/([^/]+)\/attempts$/))) {
+    return results(world.attempts[m[1]] ?? []);
+  }
+  if ((m = p.match(/^\/v2\/courses\/([^/]+)\/gradebook\/columns\/([^/]+)$/))) {
+    const found = (world.columns[m[1]] ?? []).find((c) => c.id === m[2]);
+    return found ? ok(found) : notFound;
+  }
   if ((m = p.match(/^\/v1\/courses\/([^/]+)\/gradebook\/categories$/))) return results(world.categories[m[1]] ?? []);
   if ((m = p.match(/^\/v2\/courses\/([^/]+)\/gradebook\/users\/[^/]+$/))) return results(world.grades[m[1]] ?? []);
   if ((m = p.match(/^\/v1\/courses\/([^/]+)\/announcements$/))) return results(world.announcements[m[1]] ?? []);
