@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy — Whiteboard</title>
+  <meta name="description" content="What Whiteboard and the Whiteboard Connector extension read, where it is kept, and how to remove it.">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif&display=swap">
+  <style>
+    /* The dashboard's tokens, light only — the app's default. This page stands
+       alone so it can be read without the extension or any script. */
+    :root {
+      color-scheme: light;
+      --paper: #f7f4ed; --panel: #fffdf8; --rule: #ddd7c9; --rule-soft: #eee7d8;
+      --ink: #1c1a17; --ink-2: #4a463e; --ink-3: #8d8778; --link: #2b5f8f;
+      --font-display: "Instrument Serif", Georgia, serif;
+      --font-ui: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+      --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 48px 20px 72px;
+      background: var(--paper); color: var(--ink);
+      font: 400 15px/1.65 var(--font-ui); -webkit-font-smoothing: antialiased;
+    }
+    main { max-width: 44rem; margin: 0 auto; }
+    a { color: var(--link); }
+    :focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+    .brand {
+      display: flex; align-items: center; gap: 9px;
+      padding-bottom: 12px; margin-bottom: 28px; border-bottom: 2px solid var(--ink);
+    }
+    .mark {
+      width: 22px; height: 22px; flex: none;
+      background:
+        linear-gradient(var(--paper), var(--paper)) 4px 4px / 14px 2px no-repeat,
+        linear-gradient(var(--paper), var(--paper)) 4px 10px / 9px 2px no-repeat,
+        linear-gradient(var(--paper), var(--paper)) 4px 16px / 12px 2px no-repeat,
+        var(--ink);
+    }
+    .brand a { color: var(--ink); text-decoration: none; font: 400 19px/1 var(--font-display); }
+    .brand .back { margin-left: auto; font: 400 12.5px/1 var(--font-ui); color: var(--link); }
+
+    h1 { margin: 0 0 8px; font: 400 40px/1.05 var(--font-display); text-wrap: balance; }
+    .stamp {
+      margin: 0 0 28px; font: 400 11.5px/1 var(--font-mono);
+      color: var(--ink-3); text-transform: uppercase;
+    }
+    h2 {
+      margin: 36px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--rule);
+      font: 400 24px/1.1 var(--font-display);
+    }
+    p, ul { margin: 0 0 14px; color: var(--ink-2); }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 6px; }
+    strong { color: var(--ink); font-weight: 600; }
+    code {
+      font: 13px/1.4 var(--font-mono); background: var(--panel);
+      border: 1px solid var(--rule); padding: 0 4px;
+    }
+    /* The short answer, ruled off in ink like the dashboard's feedback. */
+    .summary {
+      margin: 0 0 8px; padding: 14px 18px; background: var(--panel);
+      border: 1px solid var(--rule); box-shadow: inset 3px 0 0 var(--ink);
+    }
+    .summary p { margin: 0; color: var(--ink); }
+    footer {
+      margin-top: 44px; padding-top: 14px; border-top: 1px solid var(--rule);
+      font-size: 13px; color: var(--ink-3);
+    }
+    @media (max-width: 560px) {
+      body { padding-top: 28px; }
+      h1 { font-size: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <a href="../">Whiteboard</a>
+      <a class="back" href="../">Back to Whiteboard</a>
+    </div>
+
+    <h1>Privacy</h1>
+    <p class="stamp">Whiteboard and the Whiteboard Connector · effective 15 Sep 2026</p>
+
+    <div class="summary">
+      <p>Whiteboard reads your Blackboard courses inside your own browser. Nothing it
+      reads is sent to the developer or to any server of Whiteboard's — there isn't
+      one. It never submits, posts or changes anything on Blackboard.</p>
+    </div>
+
+    <h2>What Whiteboard is</h2>
+    <p>Whiteboard is a read-only dashboard for Blackboard Learn, made of two parts:
+    the website at <code>ethanphillips.dev/whiteboard</code>, which is a set of static
+    files hosted on GitHub Pages, and the <strong>Whiteboard Connector</strong>
+    browser extension, which makes the requests to Blackboard on the website's behalf.
+    It is an independent project, not affiliated with or endorsed by Blackboard or
+    Anthology.</p>
+
+    <h2>What it reads</h2>
+    <p>Only from the one Blackboard address you connect, and only while you are signed
+    in to it in the same browser. It uses the Blackboard session your browser already
+    has; it never asks for, sees or stores your Blackboard password.</p>
+    <ul>
+      <li>your name and Blackboard user ID;</li>
+      <li>your courses and their terms;</li>
+      <li>each course's gradebook: its items, categories and your own grades;</li>
+      <li>course content, announcements, and the files attached to them when you open or
+      download one;</li>
+      <li>your own attempts at an assignment — their status, grade and the instructor's
+      feedback.</li>
+    </ul>
+    <p>Every request is a read (<code>GET</code>). The extension only allows requests to
+    Blackboard's public REST API (<code>/learn/api/public/</code>) and its course-file
+    links, and refuses anything else.</p>
+
+    <h2>Where it is kept</h2>
+    <p>On your device, in your browser, and nowhere else:</p>
+    <ul>
+      <li><strong>The website's browser storage</strong> (an IndexedDB database named
+      <code>whiteboard</code>): a copy of what was read, so the dashboard opens quickly
+      and asks Blackboard again only once an entry is out of date; corrections you make,
+      such as an edited due date or grade weights; and which announcements have already
+      been shown to you.</li>
+      <li><strong>Small preferences</strong> (<code>localStorage</code>): your light or dark
+      choice, when you last read the announcements, and the Blackboard address you last
+      entered, so the sign-in screen can fill it in.</li>
+      <li><strong>The extension's storage</strong>: the Blackboard address you connected,
+      and the address of any file-storage server a download was found to need.</li>
+      <li><strong>Files you open or download</strong> are held in the open tab's memory and
+      are gone when you close it, unless you save them.</li>
+    </ul>
+    <p>Demo mode uses made-up data, kept in a separate database
+    (<code>whiteboard-demo</code>), and contacts no Blackboard at all.</p>
+    <p>There are no accounts, no analytics, no advertising and no tracking. Nothing is
+    sold or shared.</p>
+
+    <h2>Who else is involved</h2>
+    <ul>
+      <li><strong>Your school's Blackboard</strong> receives the requests, just as it would
+      if you were using Blackboard itself.</li>
+      <li><strong>Blackboard's file storage</strong> — for example
+      <code>*.content.blackboardcdn.com</code> or <code>*.blackboard.com</code> — serves a
+      file when you open or download one, because Blackboard redirects file links there.</li>
+      <li><strong>GitHub</strong> hosts the website, and like any web host receives
+      ordinary request information, such as your IP address, when the page loads. See
+      GitHub's privacy statement.</li>
+      <li><strong>Google Fonts</strong> serves the website's typefaces, so your browser
+      requests them from Google, which receives your IP address. See Google's privacy
+      policy.</li>
+    </ul>
+    <p>The extension itself contacts only the Blackboard address you connected and its
+    file storage.</p>
+
+    <h2>The extension's permissions</h2>
+    <ul>
+      <li><strong>Access to your Blackboard address and its file storage</strong> — asked
+      for when you press “Allow access”, and only for the address you enter.</li>
+      <li><strong>Storage</strong> — to remember that address.</li>
+      <li><strong>Declarative net request</strong> — removes the <code>Origin</code> header
+      from the extension's own requests to Blackboard, which refuses requests that carry
+      a foreign one.</li>
+      <li><strong>Web request</strong> — notes where a file download is redirected, so
+      that when a file cannot be fetched the extension can say which server it needs
+      permission for.</li>
+    </ul>
+    <p>The extension does not read or store cookies or passwords, and it answers only the
+    Whiteboard page at <code>ethanphillips.dev/whiteboard</code>.</p>
+
+    <h2>Removing your data</h2>
+    <ul>
+      <li><strong>Log out</strong> (or <strong>Exit demo</strong>) in Whiteboard clears
+      everything the website stored about your coursework, including your corrections,
+      and takes back the extension's access to Blackboard.</li>
+      <li><strong>Settings → reset</strong> clears the stored coursework and corrections
+      without disconnecting.</li>
+      <li><strong>Removing the extension</strong> deletes its storage.</li>
+      <li><strong>Clearing this site's data</strong> in your browser removes the rest,
+      including your theme choice and the remembered Blackboard address.</li>
+    </ul>
+    <p>Signing out of Blackboard itself is done on Blackboard.</p>
+
+    <h2>Changes</h2>
+    <p>If this policy changes, the new version will be posted on this page with a new
+    effective date.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy can be sent to the developer on GitHub at
+    <a href="https://github.com/ethan-phillips26">github.com/ethan-phillips26</a>.</p>
+
+    <footer>Whiteboard is read-only. It never writes to Blackboard.</footer>
+  </main>
+</body>
+</html>
