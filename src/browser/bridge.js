@@ -38,23 +38,34 @@ export class ExtensionMissing extends Error {
 // none of Capacitor. The reply crosses as a JSON string, exactly as it was sent.
 let plugin = null;
 
-async function askNative(msg) {
-  plugin ??= import("@capacitor/core").then(({ registerPlugin }) => registerPlugin("Blackboard"));
-  let reply;
+async function askNative(msg, timeout) {
+  // Wrapped, never resolved bare: a Capacitor plugin answers every property with a
+  // native method, `then` included, so a promise resolved with one treats it as a
+  // promise, calls `Blackboard.then` on the native side and waits forever.
+  plugin ??= import("@capacitor/core")
+    .then(({ registerPlugin }) => ({ native: registerPlugin("Blackboard") }));
+  let timer;
   try {
-    ({ reply } = await (await plugin).ask(msg));
+    const { native } = await plugin;
+    const { reply } = await Promise.race([
+      native.ask(msg),
+      new Promise((_, reject) => { timer = setTimeout(reject, timeout); }),
+    ]);
+    return JSON.parse(reply);
   } catch {
-    // A build without the plugin registered is the app's "no extension".
+    // A build without the plugin, or one that never answers, is the app's
+    // "no extension" — a screen that says so, not a spinner that never stops.
     throw new ExtensionMissing();
+  } finally {
+    clearTimeout(timer);
   }
-  return JSON.parse(reply);
 }
 
 /** One request to the extension. Its reply is data, never thrown. */
 export function ask(msg, timeout = 60000) {
   // The demo is answered in the page by a fake Blackboard, loaded only when used.
   if (DEMO) return import("./demo.js").then((demo) => demo.answer(msg));
-  if (NATIVE) return askNative(msg);
+  if (NATIVE) return askNative(msg, timeout);
   listen();
   return new Promise((resolve, reject) => {
     const id = ++nextId;
