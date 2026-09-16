@@ -6,6 +6,7 @@ import { save } from "./lib/download.js";
 import { ask, present } from "./browser/bridge.js";
 import { DEMO, modeUrl } from "./browser/mode.js";
 import * as E from "./browser/edits.js";
+import * as firstrun from "./browser/firstrun.js";
 import * as G from "./browser/grades.js";
 import * as google from "./browser/google.js";
 import * as ics from "./browser/ics.js";
@@ -140,13 +141,17 @@ export const api = {
   googleConnected: () => google.connected(),
   disconnectGoogle: () => google.disconnect(),
   refresh: () => sync.refresh(true),
-  /** Delete everything fetched, derived or downloaded. The login is not touched. */
-  resetData: async () => ({
-    cache_entries: await sync.forget(),
-    files: 0,
-    bytes: 0,
-    kept: ["Blackboard login"],
-  }),
+  /** Delete everything fetched, derived or downloaded. The login is not touched.
+   *
+   * A clean slate includes the welcome. Logging out deliberately does not bring
+   * the tour back — that would nag anyone who signs out routinely — but someone
+   * who has just emptied the app is starting again, and the tour is what
+   * starting again looks like. */
+  resetData: async () => {
+    const entries = await sync.forget();
+    firstrun.clear();
+    return { cache_entries: entries, files: 0, bytes: 0, kept: ["Blackboard login"] };
+  },
   /** Record that these announcements have been popped up, so they are not again. */
   markAnnounced: async (ids) => ({ announced: Object.keys(await N.mark(ids)).length }),
   courseContent: (courseId, refresh = false) => sync.courseContent(courseId, refresh),
@@ -156,6 +161,16 @@ export const api = {
   // background, while the field is already answering.
   searchCorpus: (state) => search.corpus(state),
   warmSearch: (courses, onRead) => search.warm(courses, onRead),
+  /** How much of the term can be read, and how much already has been. */
+  indexStatus: (courses) => search.indexStatus(courses),
+  /** Read every document there is, so search covers what they say. */
+  indexFiles: (courses, options) => search.indexFiles(courses, options),
+  clearFileIndex: () => search.clearIndex(),
+
+  // Whether this browser has been shown the welcome. A browser preference, kept
+  // out of the cache so that logging out does not start the tour again.
+  welcomed: () => firstrun.seen(),
+  markWelcomed: () => firstrun.mark(),
 
   needed: async (courseId, columnId, target, rate) => {
     const standing = await sync.courseStanding(courseId);

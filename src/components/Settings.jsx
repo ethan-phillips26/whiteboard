@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import { available as googleAvailable } from "../browser/google.js";
+import FileIndexer from "./FileIndexer.jsx";
 import { THEMES } from "../lib/theme.js";
 import { dateTime, filesize, points } from "../lib/format.js";
 
@@ -85,6 +86,31 @@ function GoogleDrive() {
           </button>
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * What search can see inside.
+ *
+ * A file is findable by name as soon as its course has been read. What it
+ * *says* is only searchable once something has read it — opening one in the
+ * viewer does that for that file, and this does it for all of them at once.
+ * Offered here as well as in the welcome, because day one is not the only day
+ * someone decides they want it.
+ */
+function Documents({ courses }) {
+  return (
+    <section className="panel" id="documents">
+      <div className="panel-head">
+        <h2>Document search</h2>
+        <span className="note dim">read once, kept as words</span>
+      </div>
+      <p className="note">
+        Reading every Word document, slide deck and text file in every course
+        makes their contents searchable, not just their names.
+      </p>
+      <FileIndexer courses={courses} clearable />
     </section>
   );
 }
@@ -437,6 +463,8 @@ export default function Settings({ data, courseId, theme, onTheme, onReload,
       <Appearance theme={theme} onTheme={onTheme} />
 
       <GoogleDrive />
+
+      <Documents courses={data.courses} />
 
       <section className="section" id="courses">
         <div className="panel-head">

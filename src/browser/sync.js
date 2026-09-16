@@ -547,6 +547,38 @@ function asFile(filename, { blob, bytes }) {
 // so the second file pressed in a drawer is not fetched again.
 const downloads = new Map();
 
+/** Where an item's files are actually fetched from: its own attachments, then
+ *  the ones Ultra links inside the instructions rather than listing. Named once,
+ *  because the indexer walks the same files the drawer downloads. */
+function sourcesFor(courseId, contentId, attachments, embedded) {
+  return [
+    ...attachments.filter((a) => a.id).map((a) => ({
+      url: `/learn/api/public/v1/courses/${courseId}/contents/${contentId}/attachments/${a.id}/download`,
+      filename: a.fileName || a.id,
+    })),
+    ...embedded.map((f) => ({ url: f.url, filename: f.filename })),
+  ];
+}
+
+/** The same list, for a caller that has not already fetched the item. */
+export async function fileSources(courseId, contentId) {
+  const bb = await open();
+  const [item, attachments] = await Promise.all([
+    bb.content(courseId, contentId),
+    bb.attachments(courseId, contentId),
+  ]);
+  return sourcesFor(courseId, contentId, attachments,
+                    extractEmbeddedFiles(contentInstructions(item)));
+}
+
+/** One file's bytes, kept by nobody. The drawer holds what it downloads as an
+ *  object URL for the tab; the indexer wants the bytes, the text out of them,
+ *  and then to forget both. */
+export async function fetchBytes(source) {
+  const bb = await open();
+  return bb.download(source);
+}
+
 async function fetchFiles(courseId, contentId) {
   const bb = await open();
   const item = await bb.content(courseId, contentId);
@@ -597,13 +629,9 @@ async function fetchFiles(courseId, contentId) {
     }
   };
 
-  for (const a of attachments) {
-    if (!a.id) continue;
-    await grab(`/learn/api/public/v1/courses/${courseId}/contents/${contentId}/attachments/${a.id}/download`,
-      a.fileName || a.id);
+  for (const source of sourcesFor(courseId, contentId, attachments, embedded)) {
+    await grab(source.url, source.filename);
   }
-  // Ultra links its handouts in the instructions rather than listing them.
-  for (const f of embedded) await grab(f.url, f.filename);
   return { assignment: title, downloaded, ...(failed.length ? { failed } : {}) };
 }
 

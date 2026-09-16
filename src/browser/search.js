@@ -11,8 +11,9 @@
 // Nothing here fetches a file. What a handout *says* is only searchable once it
 // has been opened and read in the page, which is what rememberFileText records.
 
+import { extractText, indexable } from "../lib/extract.js";
 import * as store from "./store.js";
-import { cachedContent, courseContent } from "./sync.js";
+import { cachedContent, courseContent, fetchBytes, fileSources } from "./sync.js";
 
 // A term's worth of course text is worth keeping; a whole textbook is not, and
 // the point of the extract is to find the document, not to be the document.
@@ -212,6 +213,171 @@ function walk(courseId) {
  * good answer to "where are the slides", and re-walking the whole term every
  * six hours to refresh it is not a cost a keystroke should carry.
  */
+/* ----------------------------------------------------------------- indexing */
+
+// Enough of a failure list to see the pattern, not enough to fill the screen or
+// the tab's memory when a whole term will not come down.
+const MAX_FAILURES = 20;
+
+/** Every file in a course that could be read, with the item it hangs off. */
+function targets(nodes, out = []) {
+  for (const node of nodes ?? []) {
+    if (!node.is_folder && node.content_id) {
+      for (const f of node.files ?? []) {
+        if (f.filename && indexable(f.filename)) {
+          out.push({ contentId: node.content_id, filename: f.filename });
+        }
+      }
+    }
+    targets(node.children ?? [], out);
+  }
+  return out;
+}
+
+/**
+ * How much of the term is readable, and how much has been read.
+ *
+ * Counted from trees already held, so opening Settings costs nothing. Courses
+ * never walked are reported rather than fetched: the count would otherwise be a
+ * term's worth of requests for a line of text nobody asked to be accurate.
+ */
+export async function indexStatus(courses = []) {
+  const held = new Set((await store.keys())
+    .filter((k) => typeof k === "string" && k.startsWith("filetext_")));
+  let readable = 0;
+  let indexed = 0;
+  let unread = 0;
+  for (const course of courses) {
+    const tree = await cachedContent(course.course_id);
+    if (!tree) {
+      unread++;
+      continue;
+    }
+    for (const t of targets(tree.nodes)) {
+      readable++;
+      if (held.has(textKey(course.course_id, t.contentId, t.filename))) indexed++;
+    }
+  }
+  return { readable, indexed, unread };
+}
+
+/**
+ * Read every document in every course, so their contents are searchable.
+ *
+ * The expensive thing the app can do, and the only one it asks for out loud.
+ * Every file is fetched whole through the extension, read for its text, and then
+ * dropped — what is kept is the words, which is kilobytes, rather than the
+ * files, which is not. Anything already read is skipped, so running it twice
+ * costs almost nothing and a run that was stopped half way can be resumed.
+ *
+ * Sequential, and stoppable between files: this is competing with whatever the
+ * reader is actually doing, and it is their bandwidth.
+ */
+export async function indexFiles(courses = [], { onProgress, shouldStop } = {}) {
+  const tally = { indexed: 0, skipped: 0, failed: 0, failures: [] };
+  const note = (filename, error) => {
+    tally.failed++;
+    if (tally.failures.length < MAX_FAILURES) tally.failures.push({ filename, error });
+  };
+
+  // Worked out in full first, so the progress bar means something from the
+  // start. A course never walked is walked here, since indexing a course whose
+  // contents are unknown would silently do nothing.
+  const jobs = [];
+  for (const course of courses) {
+    let tree = null;
+    try {
+      tree = (await cachedContent(course.course_id)) ?? (await courseContent(course.course_id));
+    } catch (e) {
+      note(course.label, `couldn't read the course: ${e.message}`);
+      continue;
+    }
+    for (const t of targets(tree?.nodes ?? [])) jobs.push({ course, ...t });
+  }
+
+  const total = jobs.length;
+  let done = 0;
+  await onProgress?.({ done, total, ...tally });
+
+  // One item's files arrive from one pair of requests, so they are fetched as a
+  // group rather than one item lookup per file.
+  const groups = new Map();
+  for (const job of jobs) {
+    const key = `${job.course.course_id}/${job.contentId}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(job);
+  }
+
+  for (const group of groups.values()) {
+    if (shouldStop?.()) return { ...tally, total, done, stopped: true };
+    const { course, contentId } = group[0];
+    const origin = { courseId: course.course_id, contentId };
+
+    // What is already read is settled before anything is fetched, so a second
+    // run over a course costs no requests at all.
+    const pending = [];
+    for (const job of group) {
+      if (await store.read(textKey(course.course_id, contentId, job.filename))) {
+        tally.skipped++;
+        done++;
+      } else pending.push(job);
+    }
+    if (!pending.length) {
+      await onProgress?.({ done, total, course: course.label, ...tally });
+      continue;
+    }
+
+    let sources = [];
+    try {
+      sources = await fileSources(course.course_id, contentId);
+    } catch (e) {
+      for (const job of pending) {
+        note(job.filename, e.message);
+        done++;
+      }
+      await onProgress?.({ done, total, course: course.label, ...tally });
+      continue;
+    }
+
+    for (const job of pending) {
+      if (shouldStop?.()) return { ...tally, total, done, stopped: true };
+      done++;
+      await onProgress?.({ done, total, course: course.label, filename: job.filename, ...tally });
+      const source = sources.find((s) => s.filename === job.filename);
+      if (!source) {
+        // The tree named a file the item no longer offers: posted and pulled, or
+        // renamed since the tree was walked.
+        note(job.filename, "Blackboard no longer lists this file on the item.");
+        continue;
+      }
+      try {
+        const got = await fetchBytes(source.url);
+        const text = await extractText(job.filename, got.blob);
+        if (text.trim()) {
+          await rememberFileText(origin, job.filename, text);
+          tally.indexed++;
+        } else {
+          // It came down and had nothing in it worth keeping — an empty deck, a
+          // document that is one picture. Not a failure.
+          tally.skipped++;
+        }
+      } catch (e) {
+        note(job.filename, e.message);
+      }
+    }
+  }
+
+  return { ...tally, total, done, stopped: false };
+}
+
+/** Forget every extract, without touching anything else that is cached. */
+export async function clearIndex() {
+  const keys = (await store.keys())
+    .filter((k) => typeof k === "string" && k.startsWith("filetext_"));
+  for (const key of keys) await store.drop(key);
+  return keys.length;
+}
+
 export async function warm(courses, onRead) {
   for (const course of courses) {
     try {

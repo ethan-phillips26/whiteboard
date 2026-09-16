@@ -9,6 +9,7 @@ import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { extractText, indexable } from "../src/lib/extract.js";
 import { matchTerm, rank, scoreRecord, snippet, terms }
   from "../src/lib/rank.js";
 
@@ -129,6 +130,7 @@ await build({
   stdin: {
     contents: `
       export { default as Spotlight } from "./components/Spotlight.jsx";
+      export { default as Welcome } from "./components/Welcome.jsx";
       export { treeRecords } from "./browser/search.js";
     `,
     resolveDir: join(FRONTEND, "src"),
@@ -142,7 +144,7 @@ await build({
   logLevel: "silent",
   external: ["react", "react-dom", "react/jsx-runtime"],
 });
-const { Spotlight, treeRecords } = await import(pathToFileURL(out).href);
+const { Spotlight, Welcome, treeRecords } = await import(pathToFileURL(out).href);
 
 const COURSE = { course_id: "_11_1", label: "CSCI 450" };
 const NODES = [
@@ -201,6 +203,73 @@ check("the field says what it searches",
       palette.includes("Search assignments"));
 check("and the keys are on screen",
       palette.includes("esc") && palette.includes("open"));
+
+// --- reading a document without drawing it -----------------------------------
+
+// Real archives, built here: a .docx and a .pptx are zips of XML, and the whole
+// point of the extractor is that it reads the actual shape Office writes.
+const JSZip = req("jszip");
+
+const docx = async (xml) => {
+  const zip = new JSZip();
+  zip.file("word/document.xml", xml);
+  return new Blob([await zip.generateAsync({ type: "uint8array" })]);
+};
+const pptx = async (slides) => {
+  const zip = new JSZip();
+  for (const [n, xml] of Object.entries(slides)) zip.file(`ppt/slides/slide${n}.xml`, xml);
+  return new Blob([await zip.generateAsync({ type: "uint8array" })]);
+};
+
+console.log("\n[search] what a document says");
+check("a text file is its own text",
+      (await extractText("notes.md", new Blob(["# Hashing"]))) === "# Hashing");
+
+const word = await extractText("essay.docx", await docx(
+  `<w:document><w:body>
+     <w:p><w:r><w:t>Chapter one.</w:t></w:r></w:p>
+     <w:p><w:r><w:t xml:space="preserve">Caf&#233; &amp; more</w:t></w:r></w:p>
+   </w:body></w:document>`));
+check("Word text comes out of the runs", word.includes("Chapter one."), word);
+check("and entities are decoded", word.includes("Café & more"), word);
+check("and paragraphs stay apart",
+      word.split("\n").filter((l) => l.trim()).length === 2, JSON.stringify(word));
+
+const deck = await extractText("week4.pptx", await pptx({
+  1: "<p:sld><a:t>Title slide</a:t></p:sld>",
+  2: "<p:sld><a:t>Hashing</a:t><a:t>collisions</a:t></p:sld>",
+  10: "<p:sld><a:t>The last slide</a:t></p:sld>",
+}));
+check("every slide is read",
+      deck.includes("Title slide") && deck.includes("collisions") &&
+      deck.includes("The last slide"), deck);
+check("slide 10 comes after slide 2, not after slide 1",
+      deck.indexOf("Hashing") < deck.indexOf("The last slide"), deck);
+check("runs on one slide are kept apart",
+      deck.includes("Hashing collisions"), deck);
+
+console.log("\n[search] what cannot be read here");
+check("a PDF is not offered to the extractor", indexable("reading.pdf") === false);
+check("and reading one yields nothing rather than throwing",
+      (await extractText("reading.pdf", new Blob(["%PDF-1.7"]))) === "");
+check("a video is never read", indexable("lecture.mp4") === false);
+check("Word, PowerPoint and text are",
+      indexable("a.docx") && indexable("b.pptx") && indexable("c.txt") &&
+      indexable("d.csv"));
+
+console.log("\n[search] the welcome");
+const welcome = renderToStaticMarkup(h(Welcome, {
+  courses: [{ course_id: "_11_1", label: "CSCI 450" }],
+  onClose: () => {},
+}));
+check("it says what the app is", welcome.includes("Welcome to Whiteboard"));
+check("and that nothing here writes to Blackboard",
+      welcome.includes("only ever reads"), welcome.slice(0, 400));
+check("and where the search is", welcome.includes("Ctrl-K"));
+check("and carries the indexer",
+      welcome.includes("Make documents searchable") &&
+      welcome.includes("document"), welcome.slice(-600));
+check("and says it can be done later", welcome.includes("later from Settings"));
 
 console.log(fails.length ? `\n${fails.length} failed\n` : "\nall passed\n");
 process.exit(fails.length ? 1 : 0);

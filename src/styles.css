@@ -1282,6 +1282,32 @@ table.items tr:hover td { background: var(--hover); }
   padding: 3px 5px; margin-right: 3px;
 }
 
+/* ------------------------------------------------------ welcome and indexing */
+
+/* Prose and one action, so it gets the width prose needs rather than a list's. */
+.wel-modal { width: min(620px, calc(100vw - 32px)); max-height: min(82vh, 720px); }
+.wel-list { display: flex; flex-direction: column; gap: 15px; padding: 8px 0 2px; }
+.wel-item > b { font-weight: 650; font-size: 13.5px; }
+.wel-item > .note { margin: 3px 0 0; }
+
+/* The one thing on this screen there is to do, ruled off from what explains it. */
+.wel-index { margin-top: 18px; border-top: 1px solid var(--rule); padding-top: 15px; }
+.wel-index > .label { display: block; margin-bottom: 8px; }
+.wel-index > .note { margin: 0 0 13px; }
+
+.idx { display: flex; flex-direction: column; gap: 10px; }
+.idx > * { margin: 0; }
+/* The meter at the width of what it is reporting on, rather than a chip's. */
+.idx-bar { width: 100%; border-radius: 2px; }
+/* A file name is not prose and will not wrap at a space. */
+.idx-now, .idx-sum { overflow-wrap: anywhere; }
+/* The gap above already separates these; the primitive's own margin would double it. */
+.idx .set-actions { margin-top: 0; }
+.idx-fails {
+  display: flex; flex-direction: column; gap: 3px;
+  max-height: 128px; overflow-y: auto;
+}
+
 /* The trigger in the dashboard's own header, shaped like the field it opens. */
 .spot-open { gap: 9px; color: var(--ink-3); font-weight: 400; }
 .spot-open kbd {

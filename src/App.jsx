@@ -12,6 +12,7 @@ import Settings from "./components/Settings.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import Spotlight from "./components/Spotlight.jsx";
 import StatRow from "./components/StatRow.jsx";
+import Welcome from "./components/Welcome.jsx";
 import { courseOrder } from "./lib/format.js";
 import { parseICS } from "./lib/ics.js";
 import { countUnread, markRead, readAt as storedReadAt } from "./lib/read.js";
@@ -34,6 +35,8 @@ export default function App() {
 
   const [drawer, setDrawer] = useState(null);
   const [spotlight, setSpotlight] = useState(false);
+  // Shown once per browser, the first time there is ever anything to show.
+  const [welcome, setWelcome] = useState(false);
   // Announcements that have never been shown, held for one modal. The set is
   // what stops a background reload popping the same post up twice while the
   // server is still being told about the first time.
@@ -160,16 +163,25 @@ export default function App() {
     }
   }, []);
 
-  // Something posted while you were away is worth a modal once. It waits behind
-  // an open drawer rather than stacking on top of it — two overlays would both
-  // answer the same Escape.
+  // The tour goes up once the first load has actually produced something, so it
+  // is never explaining a screen that is still empty. The stored flag is the only
+  // guard it needs: closing the tour sets it, and clearing stored data takes it
+  // away again, which is exactly what makes the tour return on a clean slate.
   useEffect(() => {
-    if (!data || drawer || popup) return;
+    if (!data || api.welcomed()) return;
+    setWelcome(true);
+  }, [data]);
+
+  // Something posted while you were away is worth a modal once. It waits behind
+  // an open drawer or the welcome rather than stacking on top — two overlays
+  // would both answer the same Escape.
+  useEffect(() => {
+    if (!data || drawer || popup || welcome) return;
     const fresh = (data.announcements ?? []).filter(
       (a) => (data.unannounced ?? []).includes(a.id) && !announced.current.has(a.id)
     );
     if (fresh.length) setPopup(fresh);
-  }, [data, drawer, popup]);
+  }, [data, drawer, popup, welcome]);
 
   // A calendar event and a deadline row describe the same thing differently.
   const openAssignment = useCallback((source) => {
@@ -220,7 +232,7 @@ export default function App() {
       const el = e.target;
       const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(el?.tagName ?? "") ||
         el?.isContentEditable;
-      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+      if (e.ctrlKey && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
         setSpotlight(true);
       } else if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
@@ -405,7 +417,7 @@ export default function App() {
             {/* Shaped like the field it opens, and carrying its own shortcut —
                 a palette nobody knows the key for is a palette nobody uses. */}
             <button className="spot-open" onClick={() => setSpotlight(true)}>
-              ⌕ Search<kbd>⌘K</kbd>
+              ⌕ Search<kbd>Ctrl K</kbd>
             </button>
             <button onClick={() => api.exportCalendar().catch((e) => setError(e.message))}>
               Export .ics
@@ -457,6 +469,13 @@ export default function App() {
 
       {drawer && (
         <AssignmentDrawer target={drawer} onClose={() => setDrawer(null)} />
+      )}
+
+      {welcome && (
+        <Welcome
+          courses={data.courses}
+          onClose={() => { api.markWelcomed(); setWelcome(false); }}
+        />
       )}
 
       {spotlight && (
