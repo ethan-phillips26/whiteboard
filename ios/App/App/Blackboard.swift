@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import WebKit
 
 /// The only code in the app that talks to Blackboard: the counterpart of
@@ -93,31 +94,66 @@ final class Blackboard {
         }
     }
 
+    @MainActor private func setWebCookie(_ cookie: HTTPCookie) async {
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            WKWebsiteDataStore.default().httpCookieStore.setCookie(cookie) { done.resume() }
+        }
+    }
+
+    /// Whether the connected Blackboard would be sent this cookie.
+    private static func belongs(_ cookie: HTTPCookie, to origin: String) -> Bool {
+        guard let host = URL(string: origin)?.host?.lowercased() else { return false }
+        let raw = cookie.domain.lowercased()
+        let domain = raw.hasPrefix(".") ? String(raw.dropFirst()) : raw
+        return host == domain || host.hasSuffix("." + domain)
+    }
+
+    private static func key(_ cookie: HTTPCookie) -> String {
+        "\(cookie.domain)|\(cookie.path)|\(cookie.name)"
+    }
+
+    // Held rather than flagged, so a request that starts while the restore is still
+    // running waits for it instead of going out without the session.
+    private var restoring: Task<Void, Never>?
+
     private func loadCookies() async {
+        if restoring == nil { restoring = Task { await self.restoreSession() } }
+        await restoring?.value
         for cookie in await webCookies() { HTTPCookieStorage.shared.setCookie(cookie) }
     }
 
     private func saveCookies(for url: URL) async {
-        let cookies = HTTPCookieStorage.shared.cookies(for: url) ?? []
-        await MainActor.run {
-            let store = WKWebsiteDataStore.default().httpCookieStore
-            for cookie in cookies { store.setCookie(cookie) }
+        for cookie in HTTPCookieStorage.shared.cookies(for: url) ?? [] { await setWebCookie(cookie) }
+        guard let origin = host else { return }
+        SessionVault.save((HTTPCookieStorage.shared.cookies ?? []).filter { Self.belongs($0, to: origin) },
+                          for: origin)
+    }
+
+    /// Put the last launch's session back before the first request of this one.
+    ///
+    /// Blackboard's session cookies carry no expiry, and WebKit drops cookies like
+    /// that when the app is closed — a browser that restores its tabs keeps them, so
+    /// on the web this never came up, but here every launch was a sign-out. The copy
+    /// comes from the Keychain (`SessionVault`). Whether the session is still alive is
+    /// Blackboard's call, and `users/me` asks it, exactly as it does after a sign-in.
+    /// A cookie this launch already has is newer, and is left alone.
+    private func restoreSession() async {
+        guard let origin = host else { return }
+        let present = Set(await webCookies().filter { Self.belongs($0, to: origin) }.map(Self.key))
+        for cookie in SessionVault.load(for: origin) where !present.contains(Self.key(cookie)) {
+            await setWebCookie(cookie)
         }
     }
 
     private func forgetCookies(for origin: String) async {
-        guard let host = URL(string: origin)?.host else { return }
-        let mine = { (cookie: HTTPCookie) -> Bool in
-            let domain = cookie.domain.hasPrefix(".") ? String(cookie.domain.dropFirst()) : cookie.domain
-            return host == domain || host.hasSuffix("." + domain)
-        }
-        for cookie in HTTPCookieStorage.shared.cookies ?? [] where mine(cookie) {
+        SessionVault.clear()
+        for cookie in HTTPCookieStorage.shared.cookies ?? [] where Self.belongs(cookie, to: origin) {
             HTTPCookieStorage.shared.deleteCookie(cookie)
         }
         let cookies = await webCookies()
         await MainActor.run {
             let store = WKWebsiteDataStore.default().httpCookieStore
-            for cookie in cookies where mine(cookie) { store.delete(cookie) }
+            for cookie in cookies where Self.belongs(cookie, to: origin) { store.delete(cookie) }
         }
     }
 
@@ -379,5 +415,91 @@ final class Redirects: NSObject, URLSessionTaskDelegate {
         next.httpMethod = "GET"
         next.httpBody = nil
         completionHandler(next)
+    }
+}
+
+/// Blackboard's cookies for one host, kept in the Keychain between launches.
+///
+/// The Keychain rather than UserDefaults because these are a live session: anyone
+/// holding them is signed in as the student. `ThisDeviceOnly` keeps them out of
+/// backups and off any other phone, and "log out" deletes them.
+enum SessionVault {
+    private static let service = "dev.ethanphillips.whiteboard.session"
+    private static let lock = NSLock()
+    // What was last written, so a request that changed nothing writes nothing.
+    private static var written: [String: String] = [:]
+
+    private struct Stored: Codable {
+        let name: String
+        let value: String
+        let domain: String
+        let path: String
+        let secure: Bool
+        let httpOnly: Bool
+        let expires: Date?
+        let sameSite: String?
+
+        init(_ cookie: HTTPCookie) {
+            name = cookie.name
+            value = cookie.value
+            domain = cookie.domain
+            path = cookie.path
+            secure = cookie.isSecure
+            httpOnly = cookie.isHTTPOnly
+            expires = cookie.expiresDate
+            sameSite = cookie.sameSitePolicy?.rawValue
+        }
+
+        var cookie: HTTPCookie? {
+            var properties: [HTTPCookiePropertyKey: Any] = [
+                .name: name, .value: value, .domain: domain, .path: path,
+            ]
+            if secure { properties[.secure] = "TRUE" }
+            if httpOnly { properties[HTTPCookiePropertyKey("HttpOnly")] = "TRUE" }
+            if let expires = expires { properties[.expires] = expires }
+            if let sameSite = sameSite { properties[.sameSitePolicy] = sameSite }
+            return HTTPCookie(properties: properties)
+        }
+    }
+
+    private static func query(_ origin: String?) -> [String: Any] {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+        ]
+        if let origin = origin { query[kSecAttrAccount as String] = origin }
+        return query
+    }
+
+    static func save(_ cookies: [HTTPCookie], for origin: String) {
+        let stored = cookies.map(Stored.init)
+        let fingerprint = stored.map { "\($0.domain)|\($0.path)|\($0.name)=\($0.value)" }
+            .sorted().joined(separator: "\n")
+        lock.lock()
+        defer { lock.unlock() }
+        guard written[origin] != fingerprint, let data = try? JSONEncoder().encode(stored) else { return }
+        SecItemDelete(query(origin) as CFDictionary)
+        var item = query(origin)
+        item[kSecValueData as String] = data
+        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        if SecItemAdd(item as CFDictionary, nil) == errSecSuccess { written[origin] = fingerprint }
+    }
+
+    static func load(for origin: String) -> [HTTPCookie] {
+        var search = query(origin)
+        search[kSecReturnData as String] = true
+        search[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: AnyObject?
+        guard SecItemCopyMatching(search as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data,
+              let stored = try? JSONDecoder().decode([Stored].self, from: data) else { return [] }
+        return stored.compactMap { $0.cookie }
+    }
+
+    static func clear() {
+        lock.lock()
+        defer { lock.unlock() }
+        SecItemDelete(query(nil) as CFDictionary)
+        written = [:]
     }
 }
