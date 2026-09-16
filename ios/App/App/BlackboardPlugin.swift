@@ -1,5 +1,6 @@
 import Capacitor
 import Foundation
+import QuickLook
 import UIKit
 
 /// The page's way to Blackboard inside the app. It answers the messages
@@ -18,6 +19,8 @@ public class BlackboardPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private let blackboard = Blackboard.shared
     private var login: LoginViewController?
+    // Quick Look holds its data source weakly, so the open preview is kept here.
+    private var preview: DocumentPreview?
 
     @objc func ask(_ call: CAPPluginCall) {
         Task {
@@ -62,6 +65,13 @@ public class BlackboardPlugin: CAPPlugin, CAPBridgedPlugin {
             guard let id = call.getString("id"), !id.isEmpty else { return ["error": "refused"] }
             await StreamHandler.shared.register(id: id, path: path, type: call.getString("mime") ?? "")
             return ["ok": true]
+        case "preview":
+            // Not a Blackboard request: the page hands over bytes it already holds,
+            // and nothing here touches the network.
+            guard let data = Data(base64Encoded: call.getString("base64") ?? "") else {
+                return ["error": "refused", "message": "That file could not be opened."]
+            }
+            return await openPreview(data, filename: call.getString("filename") ?? "document")
         case "host":
             return ["host": blackboard.host.map { $0 as Any } ?? NSNull()]
         case "disconnect":
@@ -85,11 +95,72 @@ public class BlackboardPlugin: CAPPlugin, CAPBridgedPlugin {
         return ["ok": true]
     }
 
+    /// A document in iOS's own viewer, answered when it is closed.
+    ///
+    /// The page draws Word at its printed width and a PDF in a frame, and in an app
+    /// that cannot zoom — zooming is off so a text box does not leave the page wider
+    /// than the screen — neither can be read on a phone. Quick Look fits the page to
+    /// the screen, pinches both ways, and has the share button a download needs.
+    @MainActor private func openPreview(_ data: Data, filename: String) async -> Blackboard.Reply {
+        guard preview == nil, let presenter = bridge?.viewController else {
+            return ["error": "busy", "message": "A document is already open."]
+        }
+        // Its own directory, so the file keeps its real name — Quick Look reads the
+        // extension to know what it is, and shows the name as the title.
+        let name = (filename as NSString).lastPathComponent.replacingOccurrences(of: ":", with: "-")
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("preview-\(UUID().uuidString)", isDirectory: true)
+        let file = folder.appendingPathComponent(name.isEmpty ? "document" : name)
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try data.write(to: file, options: [.atomic, .completeFileProtection])
+        } catch {
+            return ["error": "exception", "message": "The file could not be opened: \(error.localizedDescription)"]
+        }
+
+        return await withCheckedContinuation { done in
+            let shown = DocumentPreview(file: file) { [weak self] in
+                // Coursework does not stay on disk after it has been read.
+                try? FileManager.default.removeItem(at: folder)
+                self?.preview = nil
+                done.resume(returning: ["ok": true])
+            }
+            preview = shown
+            let controller = QLPreviewController()
+            controller.dataSource = shown
+            controller.delegate = shown
+            controller.modalPresentationStyle = .fullScreen
+            presenter.present(controller, animated: true)
+        }
+    }
+
     // Closed from here, when status first sees a user — the page's own polling is
     // what notices the sign-in, as it is with the extension's tab.
     @MainActor private func closeLogin() async {
         guard let controller = login else { return }
         login = nil
         controller.navigationController?.dismiss(animated: true)
+    }
+}
+
+/// One file for Quick Look, and what to do once it has been closed.
+final class DocumentPreview: NSObject, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
+    private let file: URL
+    private var closed: (() -> Void)?
+
+    init(file: URL, closed: @escaping () -> Void) {
+        self.file = file
+        self.closed = closed
+    }
+
+    func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
+
+    func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+        file as NSURL
+    }
+
+    func previewControllerDidDismiss(_ controller: QLPreviewController) {
+        closed?()
+        closed = nil
     }
 }

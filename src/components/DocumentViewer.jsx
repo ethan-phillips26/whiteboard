@@ -4,6 +4,7 @@ import { filesize } from "../lib/format.js";
 import { LAYER, useTopmost } from "../lib/overlay.js";
 import { READER, useTitle } from "../lib/title.js";
 import { kindOf, whyNot } from "../lib/viewer.js";
+import { previewNatively, previewsNatively } from "../browser/quicklook.js";
 import { rememberFileText } from "../browser/search.js";
 import { canStream, holdStream, releaseStream, streamUrl, whyNoStream } from "../browser/stream.js";
 import GoogleButton from "./GoogleButton.jsx";
@@ -37,7 +38,10 @@ function storedSpeed() {
 
 export default function DocumentViewer({ file, onClose }) {
   const kind = kindOf(file.filename);
-  const [status, setStatus] = useState(kind === "docx" || kind === "pptx" ? "loading" : "ready");
+  // In the iPhone app these are shown by iOS, over this reader, which closes with it.
+  const native = previewsNatively(kind);
+  const [status, setStatus] = useState(
+    native || kind === "docx" || kind === "pptx" ? "loading" : "ready");
   const [error, setError] = useState(null);
   // Kept apart from `error`: that one replaces the document with a fallback, and
   // a failed upload is no reason to stop showing what is being read.
@@ -87,9 +91,29 @@ export default function DocumentViewer({ file, onClose }) {
 
   const source = streamSrc ?? file.view ?? file.url;
 
+  // Read through a ref: callers pass a fresh arrow each render, and an effect that
+  // depended on it would open the document again every time the parent redrew.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!native) return undefined;
+    let live = true;
+    previewNatively(source, file.filename, {
+      onText: (words) => rememberFileText(file.origin, file.filename, words),
+    })
+      .then(() => live && onCloseRef.current())
+      .catch((e) => {
+        if (!live) return;
+        setError(e.message);
+        setStatus("ready");
+      });
+    return () => { live = false; };
+  }, [native, source, file.origin, file.filename]);
+
   // Word is read here; everything else is pointed at the file.
   useEffect(() => {
-    if (kind !== "docx" && kind !== "text") return undefined;
+    if (native || (kind !== "docx" && kind !== "text")) return undefined;
     let live = true;
     setStatus("loading");
     setError(null);
@@ -121,7 +145,7 @@ export default function DocumentViewer({ file, onClose }) {
       .finally(() => live && setStatus("ready"));
 
     return () => { live = false; };
-  }, [kind, source, file.origin, file.filename]);
+  }, [native, kind, source, file.origin, file.filename]);
 
   /**
    * A deck, drawn as it was designed.
@@ -136,7 +160,7 @@ export default function DocumentViewer({ file, onClose }) {
    * mid-deck keeps the size it opened at.
    */
   useEffect(() => {
-    if (kind !== "pptx") return undefined;
+    if (native || kind !== "pptx") return undefined;
     let live = true;
     let shown = null;
     setStatus("loading");
@@ -167,7 +191,7 @@ export default function DocumentViewer({ file, onClose }) {
       deckRef.current = null;
       shown?.destroy?.();
     };
-  }, [kind, source, file.origin, file.filename]);
+  }, [native, kind, source, file.origin, file.filename]);
 
   // A slideshow is driven with the arrow keys, not only the buttons it draws.
   // Escape still belongs to whatever is on top, which is handled above.
@@ -227,6 +251,8 @@ export default function DocumentViewer({ file, onClose }) {
         </div>
       );
     }
+    // iOS is drawing it; the busy note underneath is all this reader shows.
+    if (native) return null;
     switch (kind) {
       case "pdf":
         return <iframe className="viewer-frame" src={source} title={file.filename} />;
@@ -261,7 +287,7 @@ export default function DocumentViewer({ file, onClose }) {
           </div>
         );
     }
-  }, [kind, error, source, text, file, speed, streamSrc]);
+  }, [native, kind, error, source, text, file, speed, streamSrc]);
 
   return (
     <>

@@ -38,7 +38,9 @@ export class ExtensionMissing extends Error {
 // none of Capacitor. The reply crosses as a JSON string, exactly as it was sent.
 let plugin = null;
 
-async function askNative(msg, timeout) {
+/** One request to the app itself, demo or not — for what is the phone's to do
+ * rather than Blackboard's, like showing a document. */
+export async function askNative(msg, timeout) {
   // Wrapped, never resolved bare: a Capacitor plugin answers every property with a
   // native method, `then` included, so a promise resolved with one treats it as a
   // promise, calls `Blackboard.then` on the native side and waits forever.
