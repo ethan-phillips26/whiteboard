@@ -6,6 +6,11 @@ name: pages
 on:
   push:
     branches: [main]
+    # The app's native shell is not part of the site.
+    paths-ignore:
+      - "ios/**"
+      - "capacitor.config.json"
+      - ".github/workflows/ios.yml"
   workflow_dispatch:
 
 permissions:

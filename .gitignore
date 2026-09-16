@@ -39,3 +39,10 @@ local_manifest.json
 
 # The loadable localhost copy of extension/. Never commit or publish.
 extension-local/
+
+# --- iOS app ------------------------------------------------------------------
+# Signing material lives in GitHub secrets, never here.
+*.p12
+*.p8
+*.mobileprovision
+*.cer

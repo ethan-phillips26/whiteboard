@@ -3,7 +3,7 @@
 // A web page cannot read another site's data, so every request is the extension's;
 // this page only asks, and renders what comes back.
 
-import { DEMO } from "./mode.js";
+import { DEMO, NATIVE } from "./mode.js";
 
 const REQUEST = "whiteboard:request";
 const RESPONSE = "whiteboard:response";
@@ -34,10 +34,27 @@ export class ExtensionMissing extends Error {
   }
 }
 
+// In the app the plugin is imported when first asked, so the site's bundle carries
+// none of Capacitor. The reply crosses as a JSON string, exactly as it was sent.
+let plugin = null;
+
+async function askNative(msg) {
+  plugin ??= import("@capacitor/core").then(({ registerPlugin }) => registerPlugin("Blackboard"));
+  let reply;
+  try {
+    ({ reply } = await (await plugin).ask(msg));
+  } catch {
+    // A build without the plugin registered is the app's "no extension".
+    throw new ExtensionMissing();
+  }
+  return JSON.parse(reply);
+}
+
 /** One request to the extension. Its reply is data, never thrown. */
 export function ask(msg, timeout = 60000) {
   // The demo is answered in the page by a fake Blackboard, loaded only when used.
   if (DEMO) return import("./demo.js").then((demo) => demo.answer(msg));
+  if (NATIVE) return askNative(msg);
   listen();
   return new Promise((resolve, reject) => {
     const id = ++nextId;

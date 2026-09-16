@@ -18,7 +18,7 @@
  * are bundled and rendered in node by tests/test_course_page.mjs.
  */
 
-import { DEMO } from "./mode.js";
+import { DEMO, NATIVE } from "./mode.js";
 
 // Paste the OAuth client id from the Google Cloud project here. Until it is set
 // the feature hides itself, so a build without one is simply a build without
@@ -114,9 +114,13 @@ export function docName(filename) {
  * invented, and inventing files in someone's real Drive demonstrates nothing. */
 export const offered = (clientId, demo) => Boolean(clientId) && !demo;
 
-/** Whether this build offers Google at all. */
+/** Whether this build offers Google at all.
+ *
+ * Not in the iPhone app yet. Google refuses sign-in inside an embedded web view,
+ * so the popup tab this rides on cannot work there; the app needs the consent to
+ * go through ASWebAuthenticationSession instead. */
 export function available() {
-  return offered(CLIENT_ID, DEMO);
+  return offered(CLIENT_ID, DEMO) && !NATIVE;
 }
 
 /* -------------------------------------------------------------------- token */

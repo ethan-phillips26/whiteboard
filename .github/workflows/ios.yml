@@ -1,0 +1,55 @@
+# The iPhone app: the same site, built into Capacitor's shell. Nobody working on this
+# has a Mac, so this is where the Swift is compiled at all — a build that fails here
+# is the only compiler error anyone will see.
+#
+# It builds for the simulator, unsigned. Signing and TestFlight need an Apple
+# developer account and its keys as secrets, and are a job of their own when they exist.
+name: ios
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "ios/**"
+      - "package.json"
+      - "package-lock.json"
+      - "capacitor.config.json"
+      - ".github/workflows/ios.yml"
+  pull_request:
+    paths:
+      - "ios/**"
+      - "src/browser/**"
+      - "capacitor.config.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run ios
+      - name: Compile for the simulator
+        run: |
+          xcodebuild build \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO

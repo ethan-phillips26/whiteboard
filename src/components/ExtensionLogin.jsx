@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
-import { modeUrl } from "../browser/mode.js";
+import { modeUrl, NATIVE } from "../browser/mode.js";
 
 // Built into the site by vite.config.js, from the same commit as this page.
 const DOWNLOAD = "./whiteboard-connector.zip";
@@ -141,19 +141,36 @@ export default function ExtensionLogin({ auth, onSignedIn }) {
     title = "Waiting for your sign-in";
     body = (
       <>
-        <p className="note dim">
-          <span className="spin" /> Blackboard is open in a new tab. Sign in there —
-          including anything on your phone — and this page picks up as soon as
-          you're in.
-        </p>
-        <p className="note dim">That tab closes itself when you're done.</p>
+        {NATIVE ? (
+          <>
+            <p className="note dim">
+              <span className="spin" /> Sign in on Blackboard's page. It closes itself as
+              soon as you're in.
+            </p>
+            {/* Closing the sheet by hand leaves nothing on screen to sign in with. */}
+            <button className="login-submit" onClick={signIn} disabled={busy}>
+              Open the sign-in again
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="note dim">
+              <span className="spin" /> Blackboard is open in a new tab. Sign in there —
+              including anything on your phone — and this page picks up as soon as
+              you're in.
+            </p>
+            <p className="note dim">That tab closes itself when you're done.</p>
+          </>
+        )}
       </>
     );
   } else if (status?.state === "signed-out") {
     title = "Sign in to Blackboard";
     body = (
       <>
-        <p className="note">You're not signed in to <b>{where}</b> in this browser.</p>
+        <p className="note">
+          You're not signed in to <b>{where}</b>{NATIVE ? "" : " in this browser"}.
+        </p>
         <button className="primary login-submit" onClick={signIn} disabled={busy}>
           {busy ? <span className="spin" /> : "Open Blackboard's sign-in"}
         </button>

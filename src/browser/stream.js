@@ -14,8 +14,14 @@
  * anyone who finds it.
  */
 
+import { ask } from "./bridge.js";
 import { open } from "./blackboard.js";
-import { DEMO } from "./mode.js";
+import { DEMO, NATIVE } from "./mode.js";
+
+// In the app there is no service worker to answer the element: the web view is
+// served from capacitor://, which has none. A scheme handler does the same job
+// natively (ios/App/App/StreamHandler.swift), and asks Blackboard itself.
+const NATIVE_STREAM = "whiteboard-stream://video/";
 
 const sources = new Map();
 let registered = null;
@@ -36,6 +42,7 @@ export function canStream() {
  */
 export function whyNoStream() {
   if (DEMO) return "demo";
+  if (NATIVE) return null;
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return "unsupported";
   return null;
 }
@@ -46,7 +53,7 @@ export function whyNoStream() {
  * "press play, then reload, then press play again" is not a feature.
  */
 export function registerStreamWorker() {
-  if (!canStream()) return Promise.resolve(null);
+  if (!canStream() || NATIVE) return Promise.resolve(null);
   registered ??= navigator.serviceWorker
     // Relative to the document, so the same code works at /whiteboard/ on Pages
     // and at / in dev, and the scope is whatever directory the app is served from.
@@ -105,6 +112,11 @@ async function answer({ id, start, end }) {
 export function streamUrl(path, { type = "", filename = "" } = {}) {
   const id = crypto.randomUUID();
   sources.set(id, { path, type, filename, total: null });
+  if (NATIVE) {
+    // The handler waits a moment for this to land, since the element may ask first.
+    ask({ type: "stream", id, path, mime: type }).catch(() => {});
+    return NATIVE_STREAM + id;
+  }
   return new URL(`stream/${id}`, location.href).toString();
 }
 
@@ -120,10 +132,17 @@ const idOf = (url) => String(url ?? "").split("/").pop();
  */
 export function holdStream(url, path, { type = "", filename = "" } = {}) {
   const id = idOf(url);
-  if (id && !sources.has(id)) sources.set(id, { path, type, filename, total: null });
+  if (id && !sources.has(id)) {
+    sources.set(id, { path, type, filename, total: null });
+    if (NATIVE) ask({ type: "stream", id, path, mime: type }).catch(() => {});
+  }
 }
 
 /** Forget one stream, when the viewer that was playing it closes. */
 export function releaseStream(url) {
+  // The app's handler keeps its copy. Each message crosses the bridge in a task of
+  // its own, so a release and the hold straight after it (React's double mount) can
+  // arrive the wrong way round, and a video would forget itself as it opened. What is
+  // kept is an id and a path, for as long as the app is running.
   sources.delete(idOf(url));
 }
