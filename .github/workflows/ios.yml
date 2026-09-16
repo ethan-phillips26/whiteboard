@@ -2,8 +2,11 @@
 # has a Mac, so this is where the Swift is compiled at all — a build that fails here
 # is the only compiler error anyone will see.
 #
-# It builds for the simulator, unsigned. Signing and TestFlight need an Apple
-# developer account and its keys as secrets, and are a job of their own when they exist.
+# It builds twice, both unsigned: for the simulator, which is the compile check, and
+# for a real iPhone, packaged as an .ipa to sideload. Signing belongs to whatever
+# installs it — a free Apple ID re-signs it on the way onto the phone — so no keys
+# live here. TestFlight needs a paid account and its keys as secrets, and is a job of
+# its own when those exist.
 name: ios
 
 on:
@@ -53,3 +56,31 @@ jobs:
             -destination "generic/platform=iOS Simulator" \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO
+
+      # Release, not Debug: a lecture's bytes are read one at a time in Swift, and
+      # unoptimised that is slow enough to stall playback.
+      - name: Build for iPhone
+        run: |
+          xcodebuild build \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build-device \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+      # An .ipa is a zip with the app under Payload/, which is all a sideloading
+      # tool needs to re-sign and install it.
+      - name: Package the .ipa
+        run: |
+          mkdir -p ipa/Payload
+          cp -R build-device/Build/Products/Release-iphoneos/App.app ipa/Payload/
+          (cd ipa && zip -qry ../Whiteboard-unsigned.ipa Payload)
+          unzip -l Whiteboard-unsigned.ipa | tail -1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Whiteboard-unsigned-ipa
+          path: Whiteboard-unsigned.ipa
+          retention-days: 14
