@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import { extension, save } from "../lib/download.js";
 import { dateTime, filesize, points, relative } from "../lib/format.js";
+import { LAYER, useTopmost } from "../lib/overlay.js";
 import { OVERLAY, useTitle } from "../lib/title.js";
 import { canView } from "../lib/viewer.js";
 import BbLink from "./BbLink.jsx";
@@ -60,17 +61,17 @@ export default function AssignmentDrawer({ target, onClose }) {
     closeRef.current?.focus();
   }, []);
 
-  // Escape belongs to whatever is on top. Both this and the viewer listen on the
-  // window, and this one registered first, so it has to stand down itself rather
-  // than rely on the viewer stopping the event — otherwise one press closes the
-  // document you were reading *and* the assignment behind it.
+  // Escape belongs to whatever is on top. This, the document reader it opens and
+  // the search palette all listen on the window, and the one that registered
+  // first is not the one in front, so each stands down unless it is topmost.
+  const isTop = useTopmost(LAYER.overlay);
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === "Escape" && !viewing) onClose();
+      if (e.key === "Escape" && isTop) onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, viewing]);
+  }, [onClose, isTop]);
 
   useEffect(() => {
     // A manually created gradebook column has no content item behind it, so
@@ -134,7 +135,12 @@ export default function AssignmentDrawer({ target, onClose }) {
     setOpening(filename);
     setFileError(null);
     try {
-      setViewing(await fetched(filename, index));
+      // `origin` is what lets search remember the text once it has been drawn.
+      // A file returned with feedback carries none: it belongs to an attempt
+      // rather than to the item, and filing it under the item would find the
+      // wrong thing later.
+      const row = await fetched(filename, index);
+      setViewing({ ...row, origin: { courseId, contentId } });
     } catch (e) {
       setFileError(e.message);
     } finally {

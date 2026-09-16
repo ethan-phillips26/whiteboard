@@ -115,7 +115,10 @@ function Item({ node, courseId, assignment, column, onOpen, forceOpen }) {
       const file = downloaded(result, filename, index);
       if (!file || (!file.url && !file.streamable)) {
         setError(whyNotFetched(result, filename));
-      } else if (file.streamable || canView(filename)) setViewing(file);
+      } else if (file.streamable || canView(filename)) {
+        // Which item this came from, so search can file what it says under it.
+        setViewing({ ...file, origin: { courseId, contentId: node.content_id } });
+      }
       else save(file.url, file.filename);
     } catch (e) {
       setError(e.message);

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { extension } from "../lib/download.js";
 import { filesize } from "../lib/format.js";
+import { LAYER, useTopmost } from "../lib/overlay.js";
 import { READER, useTitle } from "../lib/title.js";
-import { kindOf, readDeck, whyNot } from "../lib/viewer.js";
+import { kindOf, whyNot } from "../lib/viewer.js";
+import { rememberFileText } from "../browser/search.js";
 import { canStream, holdStream, releaseStream, streamUrl, whyNoStream } from "../browser/stream.js";
 import GoogleButton from "./GoogleButton.jsx";
 
@@ -41,8 +43,10 @@ export default function DocumentViewer({ file, onClose }) {
   // a failed upload is no reason to stop showing what is being read.
   const [sendError, setSendError] = useState(null);
   const [text, setText] = useState(null);
-  const [deck, setDeck] = useState(null);
   const docxRef = useRef(null);
+  const pptxRef = useRef(null);
+  // The live previewer, kept so the arrow keys can drive the deck it drew.
+  const deckRef = useRef(null);
   const closeRef = useRef(null);
   const mediaRef = useRef(null);
   const [speed, setSpeed] = useState(storedSpeed);
@@ -53,12 +57,15 @@ export default function DocumentViewer({ file, onClose }) {
   // the tab and gives it back on close.
   useTitle([file.filename], READER);
 
+  // Escape belongs to whatever is on top, which is not necessarily this: the
+  // search palette opens over the document being read.
+  const isTop = useTopmost(LAYER.reader);
   useEffect(() => {
     closeRef.current?.focus();
-    const onKey = (e) => e.key === "Escape" && onClose();
+    const onKey = (e) => e.key === "Escape" && isTop && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, isTop]);
 
   // A streamed file has no bytes in the page at all. Its URL is one this app
   // serves and the service worker answers, so it is minted once and given back
@@ -80,11 +87,10 @@ export default function DocumentViewer({ file, onClose }) {
 
   const source = streamSrc ?? file.view ?? file.url;
 
-  // Word and PowerPoint are read here; everything else is pointed at the file.
+  // Word is read here; everything else is pointed at the file.
   useEffect(() => {
-    if (kind !== "docx" && kind !== "pptx" && kind !== "text") return;
+    if (kind !== "docx" && kind !== "text") return undefined;
     let live = true;
-    let urls = [];
     setStatus("loading");
     setError(null);
 
@@ -94,16 +100,13 @@ export default function DocumentViewer({ file, onClose }) {
       if (kind === "text") {
         const body = await res.text();
         if (live) setText(body);
+        // Drawn once, searchable from then on. This is the only moment the
+        // text exists in the page without anything extra being fetched.
+        rememberFileText(file.origin, file.filename, body);
         return;
       }
       const buffer = await res.arrayBuffer();
       if (!live) return;
-      if (kind === "pptx") {
-        const read = await readDeck(buffer);
-        urls = read.urls;
-        if (live) setDeck(read.slides);
-        return;
-      }
       // docx-preview writes the document's own styles into the container, so it
       // is loaded only for the documents that need it.
       const { renderAsync } = await import("docx-preview");
@@ -112,15 +115,72 @@ export default function DocumentViewer({ file, onClose }) {
         className: "docx", inWrapper: true, breakPages: true,
         ignoreLastRenderedPageBreak: true, useBase64URL: true,
       });
+      rememberFileText(file.origin, file.filename, docxRef.current?.innerText);
+    })()
+      .catch((e) => live && setError(e.message))
+      .finally(() => live && setStatus("ready"));
+
+    return () => { live = false; };
+  }, [kind, source, file.origin, file.filename]);
+
+  /**
+   * A deck, drawn as it was designed.
+   *
+   * This used to read the deck's *content* — headings, bullets, pictures — which
+   * is a different document from the one the lecturer made. pptx-preview places
+   * the shapes where the file says they go instead, so what is on screen is the
+   * slide. It is loaded only for the files that need it, like the Word renderer.
+   *
+   * It wants a stage in fixed pixels, so the largest 16:9 box the body can hold
+   * is measured once and handed over. It is not re-measured: resizing the window
+   * mid-deck keeps the size it opened at.
+   */
+  useEffect(() => {
+    if (kind !== "pptx") return undefined;
+    let live = true;
+    let shown = null;
+    setStatus("loading");
+    setError(null);
+
+    (async () => {
+      const res = await fetch(source);
+      if (!res.ok) throw new Error(`The file could not be read (${res.status}).`);
+      const buffer = await res.arrayBuffer();
+      const { init } = await import("pptx-preview");
+      if (!live || !pptxRef.current) return;
+      const box = pptxRef.current.getBoundingClientRect();
+      const width = Math.max(320, Math.floor(Math.min(box.width, (box.height * 16) / 9)));
+      shown = init(pptxRef.current, {
+        width, height: Math.round((width * 9) / 16), mode: "slide",
+      });
+      deckRef.current = shown;
+      await shown.preview(buffer);
+      // Only the slide on screen is drawn, so this is what the deck says rather
+      // than all of it — enough to find the lecture again, which is the point.
+      rememberFileText(file.origin, file.filename, pptxRef.current?.innerText);
     })()
       .catch((e) => live && setError(e.message))
       .finally(() => live && setStatus("ready"));
 
     return () => {
       live = false;
-      urls.forEach(URL.revokeObjectURL);
+      deckRef.current = null;
+      shown?.destroy?.();
     };
-  }, [kind, source]);
+  }, [kind, source, file.origin, file.filename]);
+
+  // A slideshow is driven with the arrow keys, not only the buttons it draws.
+  // Escape still belongs to whatever is on top, which is handled above.
+  useEffect(() => {
+    if (kind !== "pptx") return undefined;
+    const onKey = (e) => {
+      if (!deckRef.current) return;
+      if (e.key === "ArrowRight") deckRef.current.renderNextSlide();
+      else if (e.key === "ArrowLeft") deckRef.current.renderPreSlide();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [kind]);
 
   const size = filesize(file.bytes);
   const busy = status === "loading";
@@ -188,7 +248,7 @@ export default function DocumentViewer({ file, onClose }) {
       case "docx":
         return <div className="viewer-docx" ref={docxRef} />;
       case "pptx":
-        return deck ? <Deck slides={deck} /> : null;
+        return <div className="viewer-pptx" ref={pptxRef} />;
       default:
         return (
           <div className="viewer-fallback">
@@ -201,7 +261,7 @@ export default function DocumentViewer({ file, onClose }) {
           </div>
         );
     }
-  }, [kind, error, source, text, deck, file, speed, streamSrc]);
+  }, [kind, error, source, text, file, speed, streamSrc]);
 
   return (
     <>
@@ -251,40 +311,3 @@ export default function DocumentViewer({ file, onClose }) {
   );
 }
 
-/** A deck as something you can read:each slide's heading, its text, its pictures. */
-function Deck({ slides }) {
-  if (!slides?.length) {
-    return <p className="empty viewer-busy">This deck has no slides in it.</p>;
-  }
-  return (
-    <div className="deck">
-      {slides.map((slide) => (
-        <section className="slide" key={slide.number}>
-          <div className="slide-no">Slide {slide.number}</div>
-          {slide.title && <h3>{slide.title}</h3>}
-          {slide.images.length > 0 && (
-            <div className="slide-images">
-              {slide.images.map((src) => (
-                <img key={src} src={src} alt="" loading="lazy" />
-              ))}
-            </div>
-          )}
-          {slide.lines.length > 0 && (
-            <ul className="slide-lines">
-              {slide.lines.map((line, i) => <li key={i}>{line}</li>)}
-            </ul>
-          )}
-          {slide.notes.length > 0 && (
-            <details className="slide-notes">
-              <summary>Speaker notes</summary>
-              {slide.notes.map((line, i) => <p key={i}>{line}</p>)}
-            </details>
-          )}
-          {!slide.title && !slide.lines.length && !slide.images.length && (
-            <p className="empty">Nothing on this slide but its layout.</p>
-          )}
-        </section>
-      ))}
-    </div>
-  );
-}

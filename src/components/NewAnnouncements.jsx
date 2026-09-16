@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { LAYER, useTopmost } from "../lib/overlay.js";
 import { go, href } from "../lib/route.js";
 import AnnouncementList from "./AnnouncementList.jsx";
 
@@ -22,12 +23,15 @@ export default function NewAnnouncements({ announcements, order, onShown,
   const closeRef = useRef(null);
   const marked = useRef(false);
 
+  // Escape belongs to whatever is on top, and the search palette can be summoned
+  // over this: without the check, one press would close both.
+  const isTop = useTopmost(LAYER.overlay);
   useEffect(() => {
     closeRef.current?.focus();
-    const onKey = (e) => e.key === "Escape" && onClose();
+    const onKey = (e) => e.key === "Escape" && isTop && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, isTop]);
 
   // Strict mode mounts effects twice in development; the ref keeps that from
   // becoming two writes.

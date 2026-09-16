@@ -10,6 +10,7 @@ import * as G from "./browser/grades.js";
 import * as google from "./browser/google.js";
 import * as ics from "./browser/ics.js";
 import * as N from "./browser/notices.js";
+import * as search from "./browser/search.js";
 import * as store from "./browser/store.js";
 import * as sync from "./browser/sync.js";
 
@@ -149,6 +150,13 @@ export const api = {
   /** Record that these announcements have been popped up, so they are not again. */
   markAnnounced: async (ids) => ({ announced: Object.keys(await N.mark(ids)).length }),
   courseContent: (courseId, refresh = false) => sync.courseContent(courseId, refresh),
+
+  // Global search. The corpus is everything the page already holds plus whatever
+  // has been read of each course; warming is what reads the rest, in the
+  // background, while the field is already answering.
+  searchCorpus: (state) => search.corpus(state),
+  warmSearch: (courses, onRead) => search.warm(courses, onRead),
+
   needed: async (courseId, columnId, target, rate) => {
     const standing = await sync.courseStanding(courseId);
     if (!standing.accessible) throw failure(standing.reason ?? "Gradebook not accessible.", 403);

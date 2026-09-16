@@ -10,6 +10,7 @@ import Grades from "./components/Grades.jsx";
 import NewAnnouncements from "./components/NewAnnouncements.jsx";
 import Settings from "./components/Settings.jsx";
 import Sidebar from "./components/Sidebar.jsx";
+import Spotlight from "./components/Spotlight.jsx";
 import StatRow from "./components/StatRow.jsx";
 import { courseOrder } from "./lib/format.js";
 import { parseICS } from "./lib/ics.js";
@@ -32,6 +33,7 @@ export default function App() {
   const [calError, setCalError] = useState(null);
 
   const [drawer, setDrawer] = useState(null);
+  const [spotlight, setSpotlight] = useState(false);
   // Announcements that have never been shown, held for one modal. The set is
   // what stops a background reload popping the same post up twice while the
   // server is still being told about the first time.
@@ -208,6 +210,46 @@ export default function App() {
     }
   }
 
+  // Search is reachable from every screen, because the thing you are looking for
+  // is rarely on the one you are on. "/" is the shortcut a reader tries without
+  // being told, so it opens too — but only when they are not already typing into
+  // something, where it is just a slash.
+  useEffect(() => {
+    if (!auth?.logged_in) return undefined;
+    const onKey = (e) => {
+      const el = e.target;
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(el?.tagName ?? "") ||
+        el?.isContentEditable;
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setSpotlight(true);
+      } else if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setSpotlight(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [auth?.logged_in]);
+
+  // What the palette can do as well as find. Everything here is something the
+  // app already offers on some screen; the point is not having to be on it.
+  const commands = useMemo(() => [
+    { id: "overview", title: "Go to Overview", subtitle: "What is due",
+      run: () => go(HOME) },
+    { id: "grades", title: "Go to Grades", run: () => go(href.grades) },
+    { id: "announcements", title: "Go to Announcements",
+      run: () => go(href.announcements) },
+    { id: "settings", title: "Go to Settings", run: () => go(href.settings) },
+    { id: "sync", title: "Sync now", subtitle: "Re-read Blackboard",
+      run: () => { syncNow(); } },
+    { id: "export", title: "Export .ics", subtitle: "Save the calendar file",
+      run: () => api.exportCalendar().catch((e) => setError(e.message)) },
+    { id: "theme",
+      title: theme === "dark" ? "Switch to the light theme" : "Switch to the dark theme",
+      run: () => setTheme(theme === "dark" ? "light" : "dark") },
+  ], [theme]);
+
   // One colour order for the whole app, built from every enrolled course. Each
   // screen used to derive its own from whatever subset it held — the calendar
   // from events, the sidebar from assignments — so the same course came out a
@@ -360,6 +402,11 @@ export default function App() {
           </div>
           <div className="spacer" />
           <div className="row actions">
+            {/* Shaped like the field it opens, and carrying its own shortcut —
+                a palette nobody knows the key for is a palette nobody uses. */}
+            <button className="spot-open" onClick={() => setSpotlight(true)}>
+              ⌕ Search<kbd>⌘K</kbd>
+            </button>
             <button onClick={() => api.exportCalendar().catch((e) => setError(e.message))}>
               Export .ics
             </button>
@@ -410,6 +457,16 @@ export default function App() {
 
       {drawer && (
         <AssignmentDrawer target={drawer} onClose={() => setDrawer(null)} />
+      )}
+
+      {spotlight && (
+        <Spotlight
+          data={data}
+          order={order}
+          commands={commands}
+          onOpenAssignment={openAssignment}
+          onClose={() => setSpotlight(false)}
+        />
       )}
 
       {popup && (

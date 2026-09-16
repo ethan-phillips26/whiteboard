@@ -337,6 +337,19 @@ export async function courseContent(courseId, force = false) {
   return { ...entry, nodes, counts, cached: false };
 }
 
+/** What is already known about a course's content, without asking Blackboard.
+ *
+ * Search reads this rather than `courseContent`, which would go and walk the
+ * course the moment its tree went stale. For finding where the slides are, a
+ * tree read this morning is a perfectly good answer; re-walking every course in
+ * the term is not a cost a keystroke should carry. */
+export async function cachedContent(courseId) {
+  const stored = await store.getData(`content_${courseId}`);
+  if (!stored?.nodes || stored.schema !== TREE_SCHEMA) return null;
+  const [nodes, counts] = presented(stored.nodes);
+  return { ...stored, nodes, counts };
+}
+
 /* ------------------------------------------------------------------- grades */
 
 /** The gradebook rows that can move the grade. */
