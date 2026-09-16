@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { extension, save } from "../lib/download.js";
 import { dateTime } from "../lib/format.js";
 import { canView } from "../lib/viewer.js";
+import GoogleButton from "./GoogleButton.jsx";
 import RichText from "./RichText.jsx";
 import { Sep } from "./Sep.jsx";
 
@@ -23,7 +24,7 @@ function Part({ label, text, className = "", children }) {
 }
 
 /** Files from a submission, drawn like a handout's: the name reads it here. */
-function Files({ label, list, owner, busy, onTake }) {
+function Files({ label, list, owner, busy, onTake, onGet, onError }) {
   if (!list?.length) return null;
   return (
     <div className="attempt-files">
@@ -51,6 +52,8 @@ function Files({ label, list, owner, busy, onTake }) {
                   {busy === key ? <><span className="spin" /> Opening</> : "View"}
                 </button>
               )}
+              <GoogleButton filename={f.name} getFile={() => onGet(owner, f)}
+                            onError={onError} />
               <button onClick={() => onTake(owner, f, false)} disabled={busy === key}>
                 {busy === key ? <><span className="spin" /> Fetching</> : "Download"}
               </button>
@@ -88,6 +91,9 @@ export default function Submissions({ courseId, columnId, possible, onView }) {
       live = false;
     };
   }, [courseId, columnId, asked]);
+
+  /** The same file, fetched but not acted on — what the Google button uploads. */
+  const get = (owner, file) => api.attemptFile(courseId, owner, file);
 
   /** Fetch one file and read it here or save it. `owner` is the attempt it came
    * with, or "grade" for a file returned with the grade's own feedback. */
@@ -152,7 +158,7 @@ export default function Submissions({ courseId, columnId, possible, onView }) {
         <Part label={attempts.length ? "Instructor feedback on the grade" : "Instructor feedback"}
               text={gradeFeedback} className="feedback">
           <Files label="Files from your instructor" list={gradeFiles} owner="grade"
-                 busy={busy} onTake={take} />
+                 busy={busy} onTake={take} onGet={get} onError={setFileError} />
         </Part>
       )}
 
@@ -189,7 +195,7 @@ export default function Submissions({ courseId, columnId, possible, onView }) {
           {(a.feedback || a.feedback_files.length > 0) && (
             <Part label="Instructor feedback" text={a.feedback} className="feedback">
               <Files label="Files from your instructor" list={a.feedback_files} owner={a.id}
-                     busy={busy} onTake={take} />
+                     busy={busy} onTake={take} onGet={get} onError={setFileError} />
             </Part>
           )}
           {!a.feedback && !a.feedback_files.length && a.score != null && (

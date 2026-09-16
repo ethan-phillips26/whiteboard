@@ -58,6 +58,15 @@ function failure(reply, path) {
       return new BlackboardError(reply.status === 404
         ? `Not found: ${path}`
         : `Blackboard returned ${reply.status} for ${path}.`);
+    // An extension older than the page. Once the extension comes from a store,
+    // the two update on their own schedules — the site the moment it deploys,
+    // the extension when review ends and a browser gets round to it — so they
+    // really can be out of step, and the worker's own "No such request: range"
+    // is not something a student can do anything with.
+    case "unknown":
+      return new BlackboardError(
+        "This needs a newer Whiteboard Connector than the one installed. Update the " +
+        "extension, then reload this page.");
     default:
       return new BlackboardError(reply.message || `Blackboard request failed (${reply.error}).`);
   }
@@ -65,7 +74,8 @@ function failure(reply, path) {
 
 async function request(msg, path) {
   for (let attempt = 0; ; attempt++) {
-    const reply = await limited(() => ask(msg, msg.type === "file" ? 180000 : 60000));
+    const timeout = msg.type === "file" ? 180000 : msg.type === "range" ? 120000 : 60000;
+    const reply = await limited(() => ask(msg, timeout));
     if (reply.ok) return reply;
     const transient = reply.error === "network" ||
       (reply.error === "http" && RETRY.has(reply.status));
@@ -255,6 +265,26 @@ export class Client {
     const type = (reply.type || "").split(";")[0].trim() || "application/octet-stream";
     const blob = await (await fetch(`data:${type};base64,${reply.base64}`)).blob();
     return { blob, bytes: reply.bytes, type, disposition: reply.disposition ?? null };
+  }
+
+  /**
+   * One slice of a file, for something too big to download — a lecture video.
+   *
+   * `end` may be null for the open-ended range a media element opens with; the
+   * extension decides how much of it to answer, and says what it actually sent.
+   */
+  async range(path, start, end) {
+    const reply = await request({ type: "range", path, start, end }, path);
+    const binary = atob(reply.base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return {
+      buffer: bytes.buffer,
+      total: reply.total ?? null,
+      start: reply.start,
+      end: reply.end,
+      type: (reply.type || "").split(";")[0].trim(),
+    };
   }
 }
 

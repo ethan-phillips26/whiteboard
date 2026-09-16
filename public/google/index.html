@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Opening in Google — Whiteboard</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+    <script>
+      // The dashboard's own choice, read before first paint so this tab does not
+      // flash white on the way to a document.
+      (function () {
+        try {
+          document.documentElement.dataset.theme =
+            localStorage.getItem("theme") === "dark" ? "dark" : "light";
+        } catch (e) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <style>
+      /* The dashboard's tokens, the few this page uses. It stands alone: it runs
+         during a redirect, so it cannot depend on the app's bundle being up. */
+      :root {
+        --paper: #f7f4ed; --panel: #fffdf8; --rule: #ddd7c9;
+        --ink: #1c1a17; --ink-2: #4a463e; --ink-3: #8d8778; --danger: #a03c2e;
+        --font-ui: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+        color-scheme: light;
+      }
+      :root[data-theme="dark"] {
+        --paper: #171613; --panel: #1f1e1a; --rule: #35332c;
+        --ink: #f2efe6; --ink-2: #c9c4b6; --ink-3: #8d8778; --danger: #e4796a;
+        color-scheme: dark;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; padding: 24px;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--paper); color: var(--ink);
+        font: 400 15px/1.6 var(--font-ui); -webkit-font-smoothing: antialiased;
+      }
+      main {
+        max-width: 34rem; text-align: center;
+        display: flex; flex-direction: column; align-items: center; gap: 14px;
+      }
+      .mark {
+        width: 26px; height: 26px;
+        background:
+          linear-gradient(var(--paper), var(--paper)) 5px 5px / 16px 2px no-repeat,
+          linear-gradient(var(--paper), var(--paper)) 5px 12px / 11px 2px no-repeat,
+          linear-gradient(var(--paper), var(--paper)) 5px 19px / 14px 2px no-repeat,
+          var(--ink);
+      }
+      h1 { margin: 0; font-size: 17px; font-weight: 600; }
+      p { margin: 0; color: var(--ink-2); font-size: 13.5px; max-width: 42ch; }
+      p.bad { color: var(--danger); }
+      .spin {
+        width: 15px; height: 15px; border-radius: 50%;
+        border: 2px solid var(--rule); border-top-color: var(--ink-3);
+        animation: turn .7s linear infinite;
+      }
+      @keyframes turn { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark" aria-hidden="true"></div>
+      <h1 id="head">Opening in Google…</h1>
+      <div class="spin" id="spin" aria-hidden="true"></div>
+      <p id="say">Whiteboard is sending this file to your Google Drive.</p>
+    </main>
+
+    <script>
+      /*
+       * The tab that carries one handout to Google.
+       *
+       * Whiteboard opens this, because a click only ever buys one popup: this
+       * page waits, becomes the consent screen if a token is needed, comes back
+       * here with one, and finally becomes the document itself.
+       *
+       * It talks over a BroadcastChannel rather than to window.opener, because
+       * the trip through accounts.google.com can put this tab in a different
+       * browsing context group and sever that handle. The channel is same-origin
+       * either way.
+       */
+      (function () {
+        var head = document.getElementById("head");
+        var say = document.getElementById("say");
+        var spin = document.getElementById("spin");
+
+        function stop(title, message, bad) {
+          head.textContent = title;
+          say.textContent = message;
+          say.className = bad ? "bad" : "";
+          spin.remove();
+        }
+
+        var hash = new URLSearchParams(location.hash.slice(1));
+        var query = new URLSearchParams(location.search);
+        var job = hash.get("state") || query.get("job");
+
+        if (!job) {
+          stop("Nothing to open", "This page is opened by Whiteboard when you send a file to Google.", false);
+          return;
+        }
+
+        // The token is in the address bar at this point. Take it out before
+        // anything else: it should not sit in history or in a shared screen.
+        var token = hash.get("access_token");
+        var expires = hash.get("expires_in");
+        var refused = hash.get("error");
+        if (location.hash) {
+          history.replaceState(null, "", location.pathname + "?job=" + encodeURIComponent(job));
+        }
+
+        var channel = new BroadcastChannel("whiteboard-google");
+
+        channel.onmessage = function (e) {
+          var data = e.data;
+          if (!data || data.job !== job) return;
+          if (data.type === "auth") {
+            head.textContent = "Signing in to Google…";
+            say.textContent = "Whiteboard is asking for permission to add this file to your Drive.";
+            location.replace(data.url);
+          } else if (data.type === "go") {
+            head.textContent = "Opening the document…";
+            location.replace(data.url);
+          } else if (data.type === "fail") {
+            stop("That didn't work", data.message || "Whiteboard could not open this file in Google.", true);
+          }
+        };
+
+        if (refused) {
+          channel.postMessage({
+            job: job, type: "ready",
+            error: refused === "access_denied"
+              ? "Google access was not given, so the file was not uploaded."
+              : "Google refused the sign-in (" + refused + ").",
+          });
+          stop("Not opened", "Google access was not given. Nothing was uploaded, and you can close this tab.", false);
+          return;
+        }
+
+        channel.postMessage({ job: job, type: "ready", token: token, expires: expires });
+
+        // Whiteboard drives everything from here. If the tab that sent us is
+        // gone there is nobody to answer, so say so rather than spin forever.
+        setTimeout(function () {
+          if (spin.isConnected) {
+            stop("Still waiting", "Whiteboard has not sent anything to this tab. You can close it and try again.", false);
+          }
+        }, 180000);
+      })();
+    </script>
+  </body>
+</html>

@@ -468,6 +468,9 @@ export async function answer(msg) {
     case "disconnect": return { ok: true };
     case "get": return get(String(msg.path ?? ""));
     case "file": return file(String(msg.path ?? ""));
-    default: return { error: "unknown", message: `No such request: ${msg?.type}` };
+    // Deliberately not the worker's "unknown": that one means the installed
+    // extension is older than the page and should be updated, which is advice
+    // the demo must never give — it has no extension at all.
+    default: return { error: "demo-only", message: `The demo doesn't do that (${msg?.type}).` };
   }
 }

@@ -113,8 +113,9 @@ function Item({ node, courseId, assignment, column, onOpen, forceOpen }) {
       const result = saved ?? await api.fetchFiles(courseId, node.content_id);
       if (!saved) setSaved(result);
       const file = downloaded(result, filename, index);
-      if (!file?.url) setError(whyNotFetched(result, filename));
-      else if (canView(filename)) setViewing(file);
+      if (!file || (!file.url && !file.streamable)) {
+        setError(whyNotFetched(result, filename));
+      } else if (file.streamable || canView(filename)) setViewing(file);
       else save(file.url, file.filename);
     } catch (e) {
       setError(e.message);

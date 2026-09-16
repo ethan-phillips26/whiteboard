@@ -92,7 +92,9 @@
     <div class="summary">
       <p>Whiteboard reads your Blackboard courses inside your own browser. Nothing it
       reads is sent to the developer or to any server of Whiteboard's — there isn't
-      one. It never submits, posts or changes anything on Blackboard.</p>
+      one. It never submits, posts or changes anything on Blackboard. The one thing it
+      ever sends anywhere is a handout you choose to open in Google Docs, Slides or
+      Sheets, which goes to your own Google Drive.</p>
     </div>
 
     <h2>What Whiteboard is</h2>
@@ -129,8 +131,9 @@
       such as an edited due date or grade weights; and which announcements have already
       been shown to you.</li>
       <li><strong>Small preferences</strong> (<code>localStorage</code>): your light or dark
-      choice, when you last read the announcements, and the Blackboard address you last
-      entered, so the sign-in screen can fill it in.</li>
+      choice, the playback speed you last chose for a video, when you last read the
+      announcements, and the Blackboard address you last entered, so the sign-in screen
+      can fill it in.</li>
       <li><strong>The extension's storage</strong>: the Blackboard address you connected,
       and the address of any file-storage server a download was found to need.</li>
       <li><strong>Files you open or download</strong> are held in the open tab's memory and
@@ -140,6 +143,24 @@
     (<code>whiteboard-demo</code>), and contacts no Blackboard at all.</p>
     <p>There are no accounts, no analytics, no advertising and no tracking. Nothing is
     sold or shared.</p>
+
+    <h2>Google Drive</h2>
+    <p>Word, PowerPoint and Excel files can be opened in Google Docs, Slides or
+        Sheets..</p>
+    <ul>
+      <li>Google asks your permission the first time. Whiteboard requests one permission,
+      <code>drive.file</code>, which lets it see and add only the files it puts in your
+      Drive — not the rest of what is in it.</li>
+      <li>The handout is uploaded to <strong>your own Google Drive</strong>, under your
+      own Google account, and Google converts it there. The developer never receives it
+      and has no access to it.</li>
+      <li>The permission lasts as long as the browser tab and is not saved. Closing the
+      tab, logging out, or <strong>Settings → Disconnect Google</strong> ends it.</li>
+      <li>Opening the same handout again reuses the document already in your Drive where
+      it can, rather than adding another copy.</li>
+      <li>If you never press that button, nothing is sent to Google and no permission is
+      asked for.</li>
+    </ul>
 
     <h2>Who else is involved</h2>
     <ul>
@@ -154,6 +175,9 @@
       <li><strong>Google Fonts</strong> serves the website's typefaces, so your browser
       requests them from Google, which receives your IP address. See Google's privacy
       policy.</li>
+      <li><strong>Google Drive</strong> receives a handout — only one you chose to open
+      in Google Docs, Slides or Sheets — along with the Google sign-in you give it. See
+      Google's privacy policy. If you never use that button, it is not contacted.</li>
     </ul>
     <p>The extension itself contacts only the Blackboard address you connected and its
     file storage.</p>
@@ -177,9 +201,12 @@
     <ul>
       <li><strong>Log out</strong> (or <strong>Exit demo</strong>) in Whiteboard clears
       everything the website stored about your coursework, including your corrections,
-      and takes back the extension's access to Blackboard.</li>
+      takes back the extension's access to Blackboard, and ends any Google permission.</li>
       <li><strong>Settings → reset</strong> clears the stored coursework and corrections
       without disconnecting.</li>
+      <li><strong>Settings → Disconnect Google</strong> ends Whiteboard's permission to
+      add files to your Drive. Documents it already put there are yours and stay there;
+      delete them in Drive itself.</li>
       <li><strong>Removing the extension</strong> deletes its storage.</li>
       <li><strong>Clearing this site's data</strong> in your browser removes the rest,
       including your theme choice and the remembered Blackboard address.</li>

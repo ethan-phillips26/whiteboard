@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
+import { available as googleAvailable } from "../browser/google.js";
 import { THEMES } from "../lib/theme.js";
 import { dateTime, filesize, points } from "../lib/format.js";
 
@@ -37,6 +38,53 @@ function Appearance({ theme, onTheme }) {
           </button>
         ))}
       </div>
+    </section>
+  );
+}
+
+/**
+ * The Google link.
+ *
+ * There is nothing to switch on here: the first handout you send asks for
+ * permission itself, and reading a file in the page and opening it in Google
+ * stay two separate buttons wherever a file is offered. This is the way back
+ * out — and it says plainly what disconnecting does not do, because the
+ * documents are in the student's own Drive and stay there.
+ */
+function GoogleDrive() {
+  // Module memory, not storage: the permission lasts as long as the tab, so
+  // this is re-read rather than remembered.
+  const [linked, setLinked] = useState(() => api.googleConnected());
+  const [busy, setBusy] = useState(false);
+
+  if (!googleAvailable()) return null;
+
+  async function disconnect() {
+    setBusy(true);
+    try {
+      await api.disconnectGoogle();
+    } finally {
+      setLinked(api.googleConnected());
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="panel" id="google">
+      <div className="panel-head">
+        <h2>Google Drive</h2>
+      </div>
+      <p className="note">
+        Word, PowerPoint and Excel files can be opened in Google Docs, Slides or
+        Sheets.
+      </p>
+      {linked && (
+        <div className="set-actions">
+          <button onClick={disconnect} disabled={busy}>
+            {busy ? <><span className="spin" /> Disconnecting</> : "Disconnect Google"}
+          </button>
+        </div>
+      )}
     </section>
   );
 }
@@ -387,6 +435,8 @@ export default function Settings({ data, courseId, theme, onTheme, onReload,
       )}
 
       <Appearance theme={theme} onTheme={onTheme} />
+
+      <GoogleDrive />
 
       <section className="section" id="courses">
         <div className="panel-head">

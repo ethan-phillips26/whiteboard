@@ -1047,7 +1047,8 @@ table.items tr:hover td { background: var(--hover); }
 }
 /* Their own line, flush with the row's left edge — under the type chip, so the
    whole row squares off against the same margin as everything else in the panel.
-   A filename is as long as the instructor made it and these are three buttons;
+   A filename is as long as the instructor made it and these are three or four
+   buttons;
    sharing one line meant the name ellipsed away to leave room for them, and on
    a narrow drawer it wrapped anyway — so it wraps on purpose, and every row
    breaks in the same place instead of each one deciding for itself. */
@@ -1079,6 +1080,16 @@ table.items tr:hover td { background: var(--hover); }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .viewer-head .spacer { flex: 1 1 20px; }
+/* Playback speed rides in the head with the other controls, so its buttons take
+   the head's size rather than a panel's. */
+.viewer-head .seg.speed { padding: 2px; }
+.viewer-head .seg.speed button {
+  min-height: 26px; padding: 3px 9px;
+  font: 500 12px/1 var(--font-mono); font-variant-numeric: tabular-nums;
+}
+/* An upload that failed must not take the document's place, so it wraps onto its
+   own line in the head rather than replacing the body. */
+.viewer-head .err { flex: 0 0 100%; margin: 0; font-size: 12.5px; }
 
 .viewer-body { flex: 1; min-height: 0; background: var(--paper); position: relative; }
 /* Covers the frame being written into rather than replacing it, because the

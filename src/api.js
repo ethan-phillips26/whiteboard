@@ -7,6 +7,7 @@ import { ask, present } from "./browser/bridge.js";
 import { DEMO, modeUrl } from "./browser/mode.js";
 import * as E from "./browser/edits.js";
 import * as G from "./browser/grades.js";
+import * as google from "./browser/google.js";
 import * as ics from "./browser/ics.js";
 import * as N from "./browser/notices.js";
 import * as store from "./browser/store.js";
@@ -112,6 +113,9 @@ export const api = {
     // browser's cookie jar — so "log out" forgets everything this app holds and
     // takes back the extension's permission to read Blackboard.
     await sync.forget();
+    // The documents already in Drive are the student's own and are left there;
+    // what goes is this browser's permission to put anything else in it.
+    await google.disconnect();
     // The demo has nothing to disconnect; leaving it means going back to the real
     // page, and the navigation means this never needs to resolve.
     if (DEMO) {
@@ -128,6 +132,12 @@ export const api = {
   submissions: (courseId, columnId, refresh = false) =>
     sync.submissions(courseId, columnId, refresh),
   attemptFile: (courseId, attemptId, file) => sync.attemptFile(courseId, attemptId, file),
+
+  // Google Drive. The one thing this app writes anywhere, and it writes only to
+  // the student's own Drive, only the file they pressed, and never to Blackboard.
+  openInGoogle: (filename, getFile) => google.openInGoogle(filename, getFile),
+  googleConnected: () => google.connected(),
+  disconnectGoogle: () => google.disconnect(),
   refresh: () => sync.refresh(true),
   /** Delete everything fetched, derived or downloaded. The login is not touched. */
   resetData: async () => ({

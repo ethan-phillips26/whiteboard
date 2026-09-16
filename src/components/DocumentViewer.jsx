@@ -3,6 +3,8 @@ import { extension } from "../lib/download.js";
 import { filesize } from "../lib/format.js";
 import { READER, useTitle } from "../lib/title.js";
 import { kindOf, readDeck, whyNot } from "../lib/viewer.js";
+import { canStream, holdStream, releaseStream, streamUrl, whyNoStream } from "../browser/stream.js";
+import GoogleButton from "./GoogleButton.jsx";
 
 /**
  * A handout, read in the page.
@@ -16,14 +18,35 @@ import { kindOf, readDeck, whyNot } from "../lib/viewer.js";
  * Anything else says what it is and offers the download, which is the honest
  * answer and better than an empty frame.
  */
+// A lecture is watched at the speed you watch lectures at, so the choice is
+// remembered the way the theme is rather than asked again for every file.
+const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
+const SPEED_KEY = "speed";
+
+function storedSpeed() {
+  try {
+    const rate = Number(localStorage.getItem(SPEED_KEY));
+    return SPEEDS.includes(rate) ? rate : 1;
+  } catch {
+    // A private window can refuse storage outright; 1× is the honest default.
+    return 1;
+  }
+}
+
 export default function DocumentViewer({ file, onClose }) {
   const kind = kindOf(file.filename);
   const [status, setStatus] = useState(kind === "docx" || kind === "pptx" ? "loading" : "ready");
   const [error, setError] = useState(null);
+  // Kept apart from `error`: that one replaces the document with a fallback, and
+  // a failed upload is no reason to stop showing what is being read.
+  const [sendError, setSendError] = useState(null);
   const [text, setText] = useState(null);
   const [deck, setDeck] = useState(null);
   const docxRef = useRef(null);
   const closeRef = useRef(null);
+  const mediaRef = useRef(null);
+  const [speed, setSpeed] = useState(storedSpeed);
+  const playable = kind === "video" || kind === "audio";
 
   // Whatever opened this reader — a deadline's handout or a file in the course
   // materials — the document on screen is now the thing being read, so it takes
@@ -37,7 +60,25 @@ export default function DocumentViewer({ file, onClose }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const source = file.view ?? file.url;
+  // A streamed file has no bytes in the page at all. Its URL is one this app
+  // serves and the service worker answers, so it is minted once and given back
+  // when the reader closes — the map behind it is what keeps a Blackboard path
+  // out of the markup.
+  const [streamSrc] = useState(() =>
+    file.streamable && file.source && canStream()
+      ? streamUrl(file.source, { type: file.type, filename: file.filename })
+      : null);
+
+  // Claimed on the way in as well as released on the way out: StrictMode runs
+  // this pair twice in development, and a release that could not be undone left
+  // the URL pointing at nothing.
+  useEffect(() => {
+    if (!streamSrc) return undefined;
+    holdStream(streamSrc, file.source, { type: file.type, filename: file.filename });
+    return () => releaseStream(streamSrc);
+  }, [streamSrc, file.source, file.type, file.filename]);
+
+  const source = streamSrc ?? file.view ?? file.url;
 
   // Word and PowerPoint are read here; everything else is pointed at the file.
   useEffect(() => {
@@ -84,7 +125,38 @@ export default function DocumentViewer({ file, onClose }) {
   const size = filesize(file.bytes);
   const busy = status === "loading";
 
+  // playbackRate is a property, not an attribute, so React will not write it
+  // from JSX — and the element resets it to 1 each time it loads a source, which
+  // is why it is set again on loadedmetadata rather than only here.
+  useEffect(() => {
+    if (mediaRef.current) mediaRef.current.playbackRate = speed;
+  }, [speed, kind, source]);
+
+  function chooseSpeed(rate) {
+    setSpeed(rate);
+    try {
+      localStorage.setItem(SPEED_KEY, String(rate));
+    } catch {
+      // It still applies to what is playing; it just will not be remembered.
+    }
+  }
+
   const body = useCallback(() => {
+    // Streaming is the only way this file could play, and this browser has no
+    // worker to do it with. Saying so beats an element that silently shows black.
+    if (file.streamable && !streamSrc) {
+      return (
+        <div className="viewer-fallback">
+          <p className="note">
+            {whyNoStream() === "demo"
+              ? "The demo's lectures are made up, so there is no video behind this one."
+              : "This video is too large to fetch, and streaming it needs a service " +
+                "worker, which this browser doesn't have here. Open it in Blackboard " +
+                "instead."}
+          </p>
+        </div>
+      );
+    }
     if (error) {
       return (
         <div className="viewer-fallback">
@@ -101,9 +173,16 @@ export default function DocumentViewer({ file, onClose }) {
       case "image":
         return <img className="viewer-image" src={source} alt={file.filename} />;
       case "video":
-        return <video className="viewer-media" src={source} controls autoPlay={false} />;
+        return (
+          <video ref={mediaRef} className="viewer-media" src={source} controls
+                 autoPlay={false}
+                 onLoadedMetadata={(e) => { e.currentTarget.playbackRate = speed; }} />
+        );
       case "audio":
-        return <audio className="viewer-media" src={source} controls />;
+        return (
+          <audio ref={mediaRef} className="viewer-media" src={source} controls
+                 onLoadedMetadata={(e) => { e.currentTarget.playbackRate = speed; }} />
+        );
       case "text":
         return text == null ? null : <pre className="viewer-text">{text}</pre>;
       case "docx":
@@ -122,7 +201,7 @@ export default function DocumentViewer({ file, onClose }) {
           </div>
         );
     }
-  }, [kind, error, source, text, deck, file]);
+  }, [kind, error, source, text, deck, file, speed, streamSrc]);
 
   return (
     <>
@@ -138,8 +217,25 @@ export default function DocumentViewer({ file, onClose }) {
             </span>
           </div>
           <div className="spacer" />
-          <a className="btn" href={file.url} download={file.filename}>Download</a>
+          {playable && (
+            <div className="seg speed" role="group" aria-label="Playback speed">
+              {SPEEDS.map((rate) => (
+                <button key={rate} className={speed === rate ? "on" : ""}
+                        aria-pressed={speed === rate}
+                        onClick={() => chooseSpeed(rate)}>
+                  {rate}×
+                </button>
+              ))}
+            </div>
+          )}
+          <GoogleButton filename={file.filename} getFile={() => file}
+                        onError={setSendError} />
+          {/* Nothing is held for a streamed file, so there is nothing to save. */}
+          {file.url && (
+            <a className="btn" href={file.url} download={file.filename}>Download</a>
+          )}
           <button ref={closeRef} onClick={onClose}>Close</button>
+          {sendError && <p className="err">{sendError}</p>}
         </div>
 
         <div className={`viewer-body kind-${error ? "none" : kind}`}>

@@ -103,6 +103,10 @@ async function apiGet(path) {
 const FILE_PREFIXES = [API_PREFIX, "/bbcswebdav/"];
 // Chrome caps a message at 64MB, and base64 grows a file by a third.
 const MAX_FILE = 32 * 1024 * 1024;
+// One slice of a video, which never has to fit the whole file in a message. The
+// ceiling is a guard, not a target: a server that ignores Range answers 200 with
+// everything, and reading that into the worker is the failure this prevents.
+const MAX_CHUNK = 8 * 1024 * 1024;
 
 // Where each request from this worker was redirected. A download refused on its
 // way to storage fails with only "Failed to fetch", and the host it was sent to is
@@ -143,13 +147,60 @@ function toBase64(buffer) {
   return btoa(binary);
 }
 
-async function fileGet(path) {
+/** The one check both a whole file and a slice of one have to pass. */
+async function fileUrl(path) {
   const origin = await currentHost();
   if (!origin || !(await granted(origin))) return { error: "not-connected" };
   const url = new URL(path, origin);
   if (url.origin !== origin || !FILE_PREFIXES.some((p) => url.pathname.startsWith(p))) {
     return { error: "refused", message: `Only files on ${origin} can be fetched.` };
   }
+  return { url };
+}
+
+/**
+ * Why a file fetch threw, as something a person can act on.
+ *
+ * Shared with rangeGet so the two cannot drift: a video is fetched over the same
+ * redirect to the same storage host, and a refusal there means the same thing and
+ * has the same one-click fix.
+ */
+async function fileFetchError(url, e) {
+  // Without permission for the host a redirect lands on, the browser withholds
+  // the response. When that permission is what is missing, name the host and
+  // remember it, so the next "Allow access" asks for it: that is the fix, and
+  // it is one click away.
+  //
+  // Firefox delivers webRequest events asynchronously, and the failed fetch can
+  // settle before the redirect event arrives, so give it a moment to catch up.
+  for (let i = 0; i < 10 && !redirects.has(url.href); i++) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  const target = redirectedTo(url.href);
+  const where = target ? new URL(target) : null;
+  const patterns = where ? [`${where.protocol}//${where.hostname}/*`] : FILE_STORAGE;
+  if (!(await chrome.permissions.contains({ origins: patterns }))) {
+    if (where) await rememberFileHost(patterns[0]);
+    return {
+      error: "needs-file-access",
+      message: `Blackboard keeps this file on ${where?.hostname ?? "its storage server"}, ` +
+        "which Whiteboard hasn't been allowed to read yet. Click the Whiteboard " +
+        "Connector icon in your browser's extensions menu, press Allow access, then " +
+        "try again.",
+    };
+  }
+  return {
+    error: "network",
+    message: `${e?.message || e}` + (where ? ` (on ${where.hostname})` : "") +
+      ". Blackboard may keep this file on a server the extension can't reach — " +
+      "open it in Blackboard instead.",
+  };
+}
+
+async function fileGet(path) {
+  const checked = await fileUrl(path);
+  if (checked.error) return checked;
+  const { url } = checked;
 
   let resp;
   try {
@@ -157,35 +208,7 @@ async function fileGet(path) {
     // where the file is stored, and following it is the only way to the bytes.
     resp = await fetch(url, { credentials: "include" });
   } catch (e) {
-    // Without permission for the host a redirect lands on, the browser withholds
-    // the response. When that permission is what is missing, name the host and
-    // remember it, so the next "Allow access" asks for it: that is the fix, and
-    // it is one click away.
-    //
-    // Firefox delivers webRequest events asynchronously, and the failed fetch can
-    // settle before the redirect event arrives, so give it a moment to catch up.
-    for (let i = 0; i < 10 && !redirects.has(url.href); i++) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    const target = redirectedTo(url.href);
-    const where = target ? new URL(target) : null;
-    const patterns = where ? [`${where.protocol}//${where.hostname}/*`] : FILE_STORAGE;
-    if (!(await chrome.permissions.contains({ origins: patterns }))) {
-      if (where) await rememberFileHost(patterns[0]);
-      return {
-        error: "needs-file-access",
-        message: `Blackboard keeps this file on ${where?.hostname ?? "its storage server"}, ` +
-          "which Whiteboard hasn't been allowed to read yet. Click the Whiteboard " +
-          "Connector icon in your browser's extensions menu, press Allow access, then " +
-          "try again.",
-      };
-    }
-    return {
-      error: "network",
-      message: `${e?.message || e}` + (where ? ` (on ${where.hostname})` : "") +
-        ". Blackboard may keep this file on a server the extension can't reach — " +
-        "open it in Blackboard instead.",
-    };
+    return fileFetchError(url, e);
   }
   redirectedTo(url.href); // done with this request's redirects
   // The one redirect that means something else: back to the login page.
@@ -204,6 +227,79 @@ async function fileGet(path) {
     status: resp.status,
     type: resp.headers.get("content-type") || "",
     disposition: resp.headers.get("content-disposition"),
+    bytes: buffer.byteLength,
+    base64: toBase64(buffer),
+  };
+}
+
+/** `bytes 0-1048575/419430400` → its total. Null if the header is missing or
+ * says `*`, which is a server that will not tell us how long the file is. */
+function totalFromContentRange(header) {
+  const total = /\/(\d+)\s*$/.exec(header || "")?.[1];
+  return total ? Number(total) : null;
+}
+
+/**
+ * One slice of a file, for the video player.
+ *
+ * A lecture recording cannot come back whole — it does not fit in a message and
+ * would not be worth waiting for if it did — so the page asks for the range the
+ * <video> element asked it for, and gets back only that.
+ */
+async function rangeGet(path, start, end) {
+  const checked = await fileUrl(path);
+  if (checked.error) return checked;
+  const { url } = checked;
+
+  const first = Number(start) || 0;
+  // `end` is null for the open-ended range a media element opens with, and
+  // Number(null) is 0 — which asked for a single byte and handed the player a
+  // file it could not read. Absent has to mean absent, not zero.
+  const last = end == null ? NaN : Number(end);
+  const wanted = Number.isFinite(last) && last >= first
+    ? Math.min(last, first + MAX_CHUNK - 1)
+    : first + MAX_CHUNK - 1;
+
+  let resp;
+  try {
+    resp = await fetch(url, {
+      credentials: "include",
+      headers: { Range: `bytes=${first}-${wanted}` },
+    });
+  } catch (e) {
+    return fileFetchError(url, e);
+  }
+  redirectedTo(url.href);
+
+  if (resp.status === 401 || /\/webapps\/login/.test(new URL(resp.url).pathname)) {
+    return { error: "signed-out", status: resp.status };
+  }
+  if (resp.status === 403) return { error: "forbidden", status: 403 };
+
+  // 206 is the answer we asked for. A 200 means the server ignored Range and is
+  // sending the whole file, which for a lecture is hundreds of megabytes: say so
+  // and drop the body unread rather than pulling it into the worker.
+  if (resp.status === 200) {
+    resp.body?.cancel?.();
+    return {
+      error: "no-range",
+      message: "That server sends whole files only, so the video can't be streamed here.",
+    };
+  }
+  if (resp.status !== 206) return { error: "http", status: resp.status };
+
+  const total = totalFromContentRange(resp.headers.get("content-range"));
+  const buffer = await resp.arrayBuffer();
+  if (buffer.byteLength > MAX_CHUNK) {
+    return { error: "no-range", message: "That server returned more than was asked for." };
+  }
+  return {
+    ok: true,
+    status: 206,
+    type: resp.headers.get("content-type") || "",
+    total,
+    start: first,
+    end: first + buffer.byteLength - 1,
     bytes: buffer.byteLength,
     base64: toBase64(buffer),
   };
@@ -283,6 +379,7 @@ async function handle(msg, sender) {
     case "signin": return signIn();
     case "get": return apiGet(String(msg.path || ""));
     case "file": return fileGet(String(msg.path || ""));
+    case "range": return rangeGet(String(msg.path || ""), msg.start, msg.end);
     case "host": return { host: await currentHost() };
     case "disconnect": return disconnect();
     default: return { error: "unknown", message: `No such request: ${msg?.type}` };

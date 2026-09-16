@@ -6,6 +6,7 @@ import { OVERLAY, useTitle } from "../lib/title.js";
 import { canView } from "../lib/viewer.js";
 import BbLink from "./BbLink.jsx";
 import DocumentViewer from "./DocumentViewer.jsx";
+import GoogleButton from "./GoogleButton.jsx";
 import RichText from "./RichText.jsx";
 import { Sep } from "./Sep.jsx";
 import Submissions from "./Submissions.jsx";
@@ -102,7 +103,11 @@ export default function AssignmentDrawer({ target, onClose }) {
     const result = files ?? await api.fetchFiles(courseId, contentId);
     if (!files) setFiles(result);
     const row = savedFile(result, filename, index);
-    if (!row?.url) throw new Error(whyNotFetched(result, filename));
+    // A streamed row carries no url on purpose: it was never fetched, and that
+    // is not the same thing as Blackboard refusing it.
+    if (!row || (!row.url && !row.streamable)) {
+      throw new Error(whyNotFetched(result, filename));
+    }
     return row;
   }
 
@@ -111,6 +116,11 @@ export default function AssignmentDrawer({ target, onClose }) {
     setFileError(null);
     try {
       const row = await fetched(filename, index);
+      if (row.streamable) {
+        throw new Error(
+          `${row.filename} is streamed rather than downloaded — press View to watch it, ` +
+          "or open it in Blackboard to save a copy.");
+      }
       save(row.url, row.filename);
     } catch (e) {
       setFileError(e.message);
@@ -234,6 +244,11 @@ export default function AssignmentDrawer({ target, onClose }) {
                               : "View"}
                           </button>
                         )}
+                        <GoogleButton
+                          filename={a.filename}
+                          getFile={() => fetched(a.filename, i)}
+                          onError={setFileError}
+                        />
                         <button
                           onClick={() => download(a.filename, i)}
                           disabled={downloading === a.filename}

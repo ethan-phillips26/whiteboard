@@ -11,7 +11,7 @@
 const KINDS = {
   pdf: ["pdf"],
   image: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "heic"],
-  video: ["mp4", "webm", "m4v", "ogv"],
+  video: ["mp4", "webm", "m4v", "ogv", "mov"],
   audio: ["mp3", "wav", "m4a", "ogg", "oga", "flac"],
   docx: ["docx"],
   pptx: ["pptx"],

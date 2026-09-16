@@ -504,11 +504,16 @@ export async function submissions(courseId, columnId, refresh = false) {
 // Markup a course wrote is text to read, not a page to run: served as its own
 // type from an object URL it would execute in this page's origin.
 const AS_TEXT = /\.(html?|xhtml|svg|xml|xsl)$/i;
+// Played, never fetched. A lecture recording does not fit in one message to the
+// extension and nobody would wait for all of it before the first frame, so it is
+// described here and the player asks for ranges instead (browser/stream.js).
+const STREAMED = /\.(mp4|webm|m4v|ogv|mov)$/i;
 // What a file is when its server only says "bytes" — enough for the viewer to
 // draw what the browser can.
 const TYPES = {
   pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
   gif: "image/gif", webp: "image/webp", mp4: "video/mp4", webm: "video/webm",
+  mov: "video/quicktime", m4v: "video/mp4", ogv: "video/ogg",
   mp3: "audio/mpeg", wav: "audio/wav", m4a: "audio/mp4", ogg: "audio/ogg",
 };
 const GENERIC_TYPES = new Set(["", "application/octet-stream", "binary/octet-stream"]);
@@ -551,6 +556,21 @@ async function fetchFiles(courseId, contentId) {
     return candidate;
   };
   const grab = async (source, label) => {
+    // Named from the label rather than the disposition, because finding out what
+    // a server calls a file means fetching it, and this is the branch that does
+    // not. A row with no `url` is not a failure here — it is a video.
+    const streamName = safeFilename(label || "video", "video");
+    if (STREAMED.test(streamName)) {
+      // The type is settled here, from the name, for the same reason asFile does
+      // it: Blackboard serves a lecture as "application/octet-stream" as often as
+      // not, and a <video> handed that refuses to play anything at all.
+      const ext = (streamName.match(/\.([^.]+)$/)?.[1] ?? "").toLowerCase();
+      downloaded.push({
+        filename: unique(streamName), original: label, streamable: true,
+        source, type: TYPES[ext] ?? "video/mp4", bytes: null, url: null, view: null,
+      });
+      return;
+    }
     try {
       const file = await bb.download(source);
       const name = safeFilename(label || filenameFromDisposition(file.disposition) || "attachment",
