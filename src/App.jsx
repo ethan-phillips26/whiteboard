@@ -9,7 +9,7 @@ import DueList from "./components/DueList.jsx";
 import Grades from "./components/Grades.jsx";
 import NewAnnouncements from "./components/NewAnnouncements.jsx";
 import Settings from "./components/Settings.jsx";
-import Sidebar from "./components/Sidebar.jsx";
+import Sidebar, { TabBar } from "./components/Sidebar.jsx";
 import Spotlight from "./components/Spotlight.jsx";
 import StatRow from "./components/StatRow.jsx";
 import Welcome from "./components/Welcome.jsx";
@@ -355,8 +355,10 @@ export default function App() {
         order={order}
         onLogout={logout}
         loggingOut={loggingOut}
+        onSearch={() => setSpotlight(true)}
         demo={api.demo}
       />
+      <TabBar route={route} counts={counts} />
 
       <main className="main">
         {route.name === "settings" ? (
@@ -371,6 +373,10 @@ export default function App() {
             // be re-read or the two would disagree until the next reload.
             onReload={async () => { await load(false); await loadCalendar(false); }}
             onBack={() => go(HOME)}
+            me={data.me}
+            onLogout={logout}
+            loggingOut={loggingOut}
+            demo={api.demo}
           />
         ) : route.name === "course" ? (
           <CoursePage
@@ -419,7 +425,9 @@ export default function App() {
             <button className="spot-open" onClick={() => setSpotlight(true)}>
               ⌕ Search<kbd>Ctrl K</kbd>
             </button>
-            <button onClick={() => api.exportCalendar().catch((e) => setError(e.message))}>
+            {/* Not in the iPhone app, where a web view has nowhere to save a file. */}
+            <button className="export-ics"
+                    onClick={() => api.exportCalendar().catch((e) => setError(e.message))}>
               Export .ics
             </button>
             {/* Both labels are always laid out and one is hidden, so the button

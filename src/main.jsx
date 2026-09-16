@@ -9,6 +9,8 @@ import "./styles.css";
 // input under 16px on focus and leaves the page wider than the screen afterwards.
 // The site keeps pinch-zoom: a browser page that refuses it fails anyone who needs it.
 if (NATIVE) {
+  // For the few rules that only make sense inside the app.
+  document.documentElement.classList.add("native");
   document.querySelector('meta[name="viewport"]')?.setAttribute("content",
     "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
 }

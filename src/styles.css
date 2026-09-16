@@ -245,6 +245,11 @@ code {
 
 .nav-foot { margin-top: auto; }
 
+/* A phone's own navigation — a search button in the header and a bar of sections
+   along the bottom — hidden wherever the sidebar holds both. */
+.side-search, .tabnav { display: none; }
+.icon { display: block; flex: none; width: 22px; height: 22px; }
+
 .side-foot {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
   margin: 10px 16px 0; padding-top: 10px; border-top: 1px solid var(--rule);
@@ -433,6 +438,17 @@ input[type="number"] { -moz-appearance: textfield; }
 .panel-head button, .panel-head .btn { font-size: 12.5px; min-height: 30px; padding: 4px 11px; }
 
 .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* What only one side of the phone break (720px) has any use for. */
+.only-narrow { display: none; }
+
+/* A touch screen has no keys to name, so nothing names them. */
+@media (hover: none) {
+  .spot-open kbd, .spot-foot { display: none; }
+}
+
+/* Inside the iPhone app: nowhere to save a file to, and never a keyboard to name. */
+.native .export-ics, .native .spot-open kbd, .native .spot-foot { display: none; }
 .grid {
   display: grid; gap: 14px; align-items: start;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -1599,6 +1615,117 @@ table.items tr:hover td { background: var(--hover); }
   .main { padding: 18px 16px 64px; }
 }
 
+/* A phone. The sidebar becomes a header that scrolls away — the mark, search, and
+   the courses as a row of chips — and the sections move to a bar along the bottom,
+   where a thumb already is. Everything else loosens: one column, controls that
+   wrap onto their own lines rather than squeezing what they sit beside. */
+@media (max-width: 720px) {
+  .only-narrow { display: block; }
+  .wide-only { display: none; }
+
+  .sidebar {
+    position: static; flex-wrap: wrap; gap: 12px 10px;
+    padding: calc(12px + var(--safe-t)) 16px 12px;
+    background: var(--paper);
+  }
+  .brand { flex: 1 1 auto; min-width: 0; }
+  .side-search {
+    display: grid; place-items: center; flex: none;
+    width: 40px; min-height: 40px; padding: 0; margin: -6px -8px -6px 0;
+    border-color: transparent; background: transparent; color: var(--ink-2);
+  }
+  .side-search:hover:not(:disabled) { background: var(--hover); border-color: transparent; }
+
+  /* Only the courses stay up here, as chips; the sections have the bar below. */
+  /* Bleeds to the screen's edges so chips slide off them, and snaps with the
+     same inset it starts at — snapping ignores padding unless told. */
+  .nav-strip {
+    flex: 1 1 100%; order: 3; margin: 0 -16px; padding: 0 16px;
+    scroll-padding-inline: 16px;
+  }
+  .nav-strip > nav:first-child, .nav-foot, .side-foot { display: none; }
+  .sidebar nav.nav-group { gap: 6px; }
+  .nav-course {
+    padding: 7px 11px; background: var(--panel); border: 1px solid var(--rule);
+  }
+  .nav-course.on { background: var(--panel); box-shadow: none; border-color: var(--ink); }
+  .nav-course-name { max-width: none; }
+
+  .tabnav {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    padding: 0 var(--safe-r) var(--safe-b) var(--safe-l);
+    background: color-mix(in srgb, var(--panel) 94%, transparent);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    border-top: 1px solid var(--rule);
+  }
+  .tabnav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    min-width: 0; padding: 9px 2px 7px;
+    font: 500 10.5px/1.1 var(--font-ui); letter-spacing: .01em; white-space: nowrap;
+    color: var(--ink-3); text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tabnav-item.on { color: var(--ink); }
+  .tabnav-icon { position: relative; }
+  .tabnav-count {
+    position: absolute; top: -4px; left: calc(100% - 8px);
+    min-width: 17px; padding: 3px 4px; text-align: center;
+    font: 500 10px/1 var(--font-mono); background: var(--ink); color: var(--on-ink);
+  }
+
+  /* Room at the foot of every screen for the bar that sits over it. */
+  .main { padding: 18px 16px calc(88px + var(--safe-b)); }
+
+  /* The dashboard's own search is the header's button now. */
+  .spot-open { display: none; }
+
+  /* A panel's controls wrap under its title rather than crowding it. */
+  .panel-head > .spacer { flex: 1 1 100%; height: 0; }
+
+  /* The month's controls keep its line; the count drops under the name. */
+  .cal .sheet-head { flex-wrap: wrap; align-items: center; row-gap: 4px; }
+  .cal .sheet-head .sheet-count { order: 3; flex: 1 1 100%; }
+
+  /* A course's tabs stay one row and slide, instead of stacking in two. */
+  .tabbar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .tabbar > .spacer { display: none; }
+  .tabbar .seg {
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+    scroll-snap-type: x proximity; scroll-padding-inline: 3px;
+  }
+  .tabbar .seg::-webkit-scrollbar { display: none; }
+  .tabbar .seg button { flex: 1 0 auto; scroll-snap-align: start; }
+  .tab-next { margin-left: 0; max-width: none; }
+
+  /* A material: its kind and its controls share the top line, and what it is
+     gets the full width underneath. */
+  .mat-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; }
+  .mat-kind { justify-self: start; width: auto; padding: 2px 7px; margin: 0; }
+  .mat-actions { grid-column: 2; grid-row: 1; flex-direction: row; align-items: center; gap: 10px; }
+  .mat-id { grid-column: 1 / -1; }
+
+  /* A grade category: its whole name, then its weight, meter and score. */
+  .catrow { flex-wrap: wrap; row-gap: 6px; padding: 10px 0; }
+  .catrow .nm { flex: 1 1 100%; white-space: normal; }
+  .catrow .w:not(.score) { width: auto; text-align: left; }
+  .catrow .bar { flex: 1 1 auto; width: auto; }
+
+  /* A settings course is a row to tap, not a card with an empty footer. */
+  .set-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; }
+  .set-card > :not(.ccard-foot) { grid-column: 1; }
+  .set-card .ccard-foot {
+    grid-column: 2; grid-row: 1 / span 2; align-self: center;
+    margin: 0; padding: 0; border: 0; min-height: 0;
+  }
+
+  /* The palette opens under the status bar, above where the keyboard will be. */
+  .spot {
+    top: calc(var(--safe-t) + 10px); width: calc(100vw - 24px);
+    max-height: calc(100dvh - var(--safe-t) - 24px);
+  }
+}
+
 @media (max-width: 760px) {
   /* The figures drop under the countdown and share the band's width. */
   .band { flex-wrap: wrap; }
@@ -1654,5 +1781,5 @@ table.items tr:hover td { background: var(--hover); }
   .topbar .spacer, .page-head .spacer { display: none; }
   .topbar h1, .page-head h1, .course-head h1 { font-size: 26px; }
   .grid { grid-template-columns: minmax(0, 1fr); }
-  .main { padding: 16px 14px 56px; }
+  .main { padding: 16px 14px calc(88px + var(--safe-b)); }
 }

@@ -431,7 +431,8 @@ function CourseSettings({ course, data, onReload, onBack }) {
 }
 
 export default function Settings({ data, courseId, theme, onTheme, onReload,
-                                   onBack, onOpenCourse }) {
+                                   onBack, onOpenCourse, me, onLogout, loggingOut,
+                                   demo = false }) {
   const course = courseId
     ? data.courses.find((c) => c.course_id === courseId)
     : null;
@@ -453,7 +454,8 @@ export default function Settings({ data, courseId, theme, onTheme, onReload,
           </p>
         </div>
         <div className="spacer" />
-        <button onClick={onBack}>Back to dashboard</button>
+        {/* The tab bar is the way back on a phone. */}
+        <button className="wide-only" onClick={onBack}>Back to dashboard</button>
       </header>
 
       {courseId && !course && (
@@ -482,7 +484,34 @@ export default function Settings({ data, courseId, theme, onTheme, onReload,
       </section>
 
       <StoredData onReload={onReload} />
+
+      <Account me={me} onLogout={onLogout} loggingOut={loggingOut} demo={demo} />
     </>
+  );
+}
+
+/**
+ * Who is signed in, and the way out — on a phone only.
+ *
+ * Everywhere else the sidebar's foot says this. A phone's header has no room for
+ * it and its tab bar is for going places, so it comes here, where a person looking
+ * for "log out" looks.
+ */
+function Account({ me, onLogout, loggingOut, demo }) {
+  const name = [me?.name?.given, me?.name?.family].filter(Boolean).join(" ") ||
+    me?.username || "";
+  return (
+    <section className="panel only-narrow" id="account">
+      <div className="panel-head">
+        <h2>Account</h2>
+        {name && <span className="note dim">{name}</span>}
+      </div>
+      <button onClick={onLogout} disabled={loggingOut}>
+        {loggingOut
+          ? <><span className="spin" /> {demo ? "Leaving" : "Logging out"}</>
+          : demo ? "Exit demo" : "Log out"}
+      </button>
+    </section>
   );
 }
 

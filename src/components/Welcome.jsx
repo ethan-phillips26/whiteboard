@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { NATIVE } from "../browser/mode.js";
 import { LAYER, useTopmost } from "../lib/overlay.js";
 import FileIndexer from "./FileIndexer.jsx";
 
@@ -20,13 +21,19 @@ const FEATURES = [
    "Every deadline, grade, announcement and handout from every course, on one " +
    "screen instead of six."],
   ["Nothing here can change Blackboard",
-   "The connector only ever reads. Nothing is submitted, posted or edited on " +
-   "the university's side — corrections you make live in this browser."],
-  ["Search the whole term with Ctrl-K",
-   "Assignments, documents, slide decks, announcements and file names, from " +
-   "any screen. Or just press / when you are not typing into something."],
+   `${NATIVE ? "Whiteboard" : "The connector"} only ever reads. Nothing is submitted, ` +
+   "posted or edited on the university's side — corrections you make live " +
+   `${NATIVE ? "on this phone" : "in this browser"}.`],
+  // A phone has no Ctrl-K to press; the search button sits at the top instead.
+  NATIVE
+    ? ["Search the whole term",
+       "Assignments, documents, slide decks, announcements and file names, from " +
+       "the search button at the top of any screen."]
+    : ["Search the whole term with Ctrl-K",
+       "Assignments, documents, slide decks, announcements and file names, from " +
+       "any screen. Or just press / when you are not typing into something."],
   ["Read handouts without downloading them",
-   "Word, PowerPoint, PDFs, images and code open in the page, and lecture " +
+   `Word, PowerPoint, PDFs, images and code open ${NATIVE ? "right here" : "in the page"}, and lecture ` +
    "recordings stream rather than download."],
   ["Grades that do the arithmetic",
    "Enter what each category is worth once and every course shows where it " +
