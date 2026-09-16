@@ -3,6 +3,6 @@
   "appName": "Whiteboard",
   "webDir": "dist",
   "ios": {
-    "contentInset": "automatic"
+    "contentInset": "never"
   }
 }
