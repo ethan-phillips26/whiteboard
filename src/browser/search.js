@@ -82,12 +82,13 @@ function courseRecords(courses) {
 function assignmentRecords(assignments) {
   return assignments.map((a) => ({
     kind: "assignment",
-    id: `assignment:${a.course_id}:${a.column_id ?? a.content_id}`,
+    id: `assignment:${a.course_id}:${a.own_id ?? a.column_id ?? a.content_id}`,
     title: a.title,
     course: a.course,
     courseId: a.course_id,
     contentId: a.content_id ?? null,
     columnId: a.column_id ?? null,
+    ownId: a.own_id ?? null,
     due: a.due_local ?? null,
     points: a.points_possible ?? null,
     boost: KIND_BOOST.assignment,

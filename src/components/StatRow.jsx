@@ -23,7 +23,8 @@ function countdown(due, now) {
  * a glance. A course count and "points at stake" used to sit here too; neither
  * changed what anyone did next, so they went.
  */
-export default function StatRow({ assignments, courses, standings = {}, order }) {
+export default function StatRow({ assignments, courses, standings = {}, order,
+                                  onOpenAssignment }) {
   // The headline figure is a countdown, so it has to move. Once a minute is
   // enough for a card that reads in hours and days, and costs nothing.
   const [tick, setTick] = useState(() => Date.now());
@@ -80,7 +81,20 @@ export default function StatRow({ assignments, courses, standings = {}, order })
         <div className="band-detail">
           {next ? (
             <>
-              <div className="band-title" title={next.title}>{next.title}</div>
+              {/* The one deadline the page is built around, so it opens what it
+                  names, the same as its row in the list does. */}
+              <button
+                className="band-title"
+                title={next.title}
+                onClick={() => onOpenAssignment({
+                  courseId: next.course_id, contentId: next.content_id,
+                  columnId: next.column_id, ownId: next.own_id,
+                  title: next.title, course: next.course,
+                  points: next.points_possible, due: next.due,
+                })}
+              >
+                {next.title}
+              </button>
               <div className={"band-meta s" + courseSlot(next.course, order)}>
                 <i className="dot" />
                 <span>

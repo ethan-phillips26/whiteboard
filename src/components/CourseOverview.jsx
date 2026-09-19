@@ -47,11 +47,12 @@ export default function CourseOverview({ standing, assignments, announcements,
                 return (
                   <button
                     className="due"
-                    key={a.column_id ?? a.content_id ?? a.title}
+                    key={a.own_id ?? a.column_id ?? a.content_id ?? a.title}
                     onClick={() =>
                       onOpenAssignment({
                         courseId: a.course_id, contentId: a.content_id,
-                        columnId: a.column_id, title: a.title, course: a.course,
+                        columnId: a.column_id, ownId: a.own_id,
+                        title: a.title, course: a.course,
                         points: a.points_possible, due,
                       })
                     }

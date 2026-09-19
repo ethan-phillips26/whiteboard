@@ -97,6 +97,42 @@ check("an event with no DTEND falls back to its start",
 check("empty input is not a crash", parseICS("").events.length === 0);
 check("garbage input is not a crash", parseICS("hello\nworld").events.length === 0);
 
+console.log("\n[ics parser] the student's own items");
+{
+  const { asAssignments, outstanding } = await import(join(root, "src/browser/own.js"));
+  const now = Date.parse("2026-09-01T12:00:00Z");
+  const rows = asAssignments([
+    { id: "abc123", title: "Lab report, printed", course_id: "_1_1", course: "OLD",
+      due_utc: "2026-09-10T04:59:00.000Z",
+      description: "Room 204.\nRubric: https://example.edu/rubric; bring it" },
+    { id: "gone", title: "Essay", course_id: "_9_9", course: "HIST 101",
+      course_name: "History", due_utc: "2026-09-12T04:59:00.000Z", done: true },
+    { id: "late", title: "Old worksheet", due_utc: "2026-08-01T04:59:00.000Z" },
+  ], [{ course_id: "_1_1", label: "CS-340", title: "Algorithms" }], now);
+
+  const labRow = rows.find((r) => r.own_id === "abc123");
+  check("a known course is named as the course list names it now",
+        labRow.course === "CS-340" && labRow.course_name === "Algorithms",
+        JSON.stringify(labRow));
+  check("a course that has left the list keeps the name it was written with",
+        rows.find((r) => r.own_id === "gone").course === "HIST 101");
+  check("done is outstanding no more", !outstanding(rows.find((r) => r.own_id === "gone"), now));
+  check("nor is something long past", !outstanding(rows.find((r) => r.own_id === "late"), now));
+  check("the rest is", outstanding(rows.find((r) => r.own_id === "abc123"), now));
+
+  const own = parseICS(build(rows)).events;
+  const lab = own.find((e) => e.ownId === "abc123");
+  check("every item comes back, carrying its own id", own.length === 3 && !!lab,
+        JSON.stringify(own.map((e) => e.ownId)));
+  check("its uid is its own, not Blackboard's",
+        lab?.uid === "own-abc123@blackboard-dashboard.local", lab?.uid);
+  check("what the student wrote reaches the calendar file",
+        lab?.description.includes("Room 204.\nRubric: https://example.edu/rubric; bring it"),
+        lab?.description);
+  check("done reads as done, not as submitted",
+        own.find((e) => e.ownId === "gone")?.description.includes("Done"));
+}
+
 console.log("\n" + "=".repeat(60));
 console.log(fails.length ? `FAILED (${fails.length}): ${fails.join(", ")}` : "ALL CHECKS PASSED");
 console.log("=".repeat(60));

@@ -358,6 +358,16 @@ check("a bare url with no label is left as plain text",
       html(h(RichText, { text: "go to https://x.edu now" }))
       === "go to https://x.edu now");
 
+check("a typed-in note links a pasted address, and not the full stop after it",
+      html(h(RichText, { text: "see https://x.edu/a?b=1. then", bare: true }))
+      === 'see <a class="link" href="https://x.edu/a?b=1" target="_blank" ' +
+          'rel="noreferrer noopener">https://x.edu/a?b=1</a>. then',
+      html(h(RichText, { text: "see https://x.edu/a?b=1. then", bare: true })));
+check("and still reads a labelled link beside it",
+      html(h(RichText, { text: `[Rubric](${ADVISE}) or https://y.edu`, bare: true }))
+        .includes(">Rubric</a> or <a"),
+      html(h(RichText, { text: `[Rubric](${ADVISE}) or https://y.edu`, bare: true })));
+
 console.log("\n[links] clamping around them");
 check("a body is measured as it reads, not as it is stored",
       visibleLength(SENTENCE) === "See Bison Advise - Your Advising Resource for help.".length,

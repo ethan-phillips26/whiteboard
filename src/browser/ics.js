@@ -60,6 +60,9 @@ function human(d) {
 const points = (p) => String(Number(p));
 
 function uid(item) {
+  // The student's own items have ids of their own, in a namespace Blackboard's
+  // column and content ids can never collide with.
+  if (item.own_id) return `own-${String(item.own_id).replace(/[^A-Za-z0-9._-]/g, "-")}@${UID_DOMAIN}`;
   const handle = item.column_id || item.content_id || item.title || "item";
   return `bb-${String(handle).replace(/[^A-Za-z0-9._-]/g, "-")}@${UID_DOMAIN}`;
 }
@@ -76,7 +79,10 @@ function event(item, now) {
     item.course_name || course || null,
     `Due ${human(due)}`,
     pts ? `${points(pts)} points` : null,
-    item.submitted ? "Already submitted" : null,
+    item.submitted ? (item.own ? "Done" : "Already submitted") : null,
+    // What the student wrote on their own item — the room, the links, the
+    // instructions given out loud — is the reason it exists.
+    item.description ? `\n${item.description}` : null,
   ].filter(Boolean).join("\n");
 
   const lines = [
@@ -99,6 +105,7 @@ function event(item, now) {
     ["X-BB-COURSE-ID", item.course_id],
     ["X-BB-COLUMN-ID", item.column_id],
     ["X-BB-CONTENT-ID", item.content_id],
+    ["X-BB-OWN-ID", item.own_id],
     ["X-BB-TITLE", title],
   ]) {
     if (value) lines.push(`${prop}:${esc(value)}`);

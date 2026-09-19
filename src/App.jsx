@@ -8,6 +8,7 @@ import CoursePage, { TABS } from "./components/CoursePage.jsx";
 import DueList from "./components/DueList.jsx";
 import Grades from "./components/Grades.jsx";
 import NewAnnouncements from "./components/NewAnnouncements.jsx";
+import OwnItemDrawer, { AddItem } from "./components/OwnItem.jsx";
 import Settings from "./components/Settings.jsx";
 import Sidebar, { TabBar } from "./components/Sidebar.jsx";
 import Spotlight from "./components/Spotlight.jsx";
@@ -34,6 +35,9 @@ export default function App() {
   const [calError, setCalError] = useState(null);
 
   const [drawer, setDrawer] = useState(null);
+  // The form for a new item of the student's own: `{ day, courseId }`, either
+  // of which may be absent.
+  const [adding, setAdding] = useState(null);
   const [spotlight, setSpotlight] = useState(false);
   // Shown once per browser, the first time there is ever anything to show.
   const [welcome, setWelcome] = useState(false);
@@ -123,6 +127,13 @@ export default function App() {
     }
   }, []);
 
+  // An item of the student's own lands in the list and in the calendar, and the
+  // calendar is drawn from the .ics, so both are re-read.
+  const reloadAll = useCallback(async () => {
+    await load(false);
+    await loadCalendar(false);
+  }, [load, loadCalendar]);
+
   useEffect(() => {
     loadAuth();
   }, [loadAuth]);
@@ -176,12 +187,12 @@ export default function App() {
   // an open drawer or the welcome rather than stacking on top — two overlays
   // would both answer the same Escape.
   useEffect(() => {
-    if (!data || drawer || popup || welcome) return;
+    if (!data || drawer || adding || popup || welcome) return;
     const fresh = (data.announcements ?? []).filter(
       (a) => (data.unannounced ?? []).includes(a.id) && !announced.current.has(a.id)
     );
     if (fresh.length) setPopup(fresh);
-  }, [data, drawer, popup, welcome]);
+  }, [data, drawer, adding, popup, welcome]);
 
   // A calendar event and a deadline row describe the same thing differently.
   const openAssignment = useCallback((source) => {
@@ -189,6 +200,8 @@ export default function App() {
       courseId: source.courseId ?? source.course_id ?? null,
       contentId: source.contentId ?? source.content_id ?? null,
       columnId: source.columnId ?? source.column_id ?? null,
+      // The student's own item, which opens in a drawer of its own.
+      ownId: source.ownId ?? source.own_id ?? null,
       // Which part of the drawer was asked for: a grade opens on its submissions.
       focus: source.focus ?? null,
       title: source.title ?? source.summary ?? "",
@@ -253,6 +266,9 @@ export default function App() {
     { id: "announcements", title: "Go to Announcements",
       run: () => go(href.announcements) },
     { id: "settings", title: "Go to Settings", run: () => go(href.settings) },
+    { id: "add", title: "Add to calendar",
+      subtitle: "Something Blackboard doesn't know about",
+      run: () => setAdding({}) },
     { id: "sync", title: "Sync now", subtitle: "Re-read Blackboard",
       run: () => { syncNow(); } },
     { id: "export", title: "Export .ics", subtitle: "Save the calendar file",
@@ -340,6 +356,8 @@ export default function App() {
   }
 
   const name = data.me?.name?.given ?? "";
+  const ownItem = drawer?.ownId
+    ? (data.own_items ?? []).find((i) => i.own_id === drawer.ownId) : null;
 
   // The dashboard is one screenful by design — the countdown, the month and the
   // deadline list are meant to be taken in together — so its shell is pinned to
@@ -371,7 +389,7 @@ export default function App() {
             // An edited due date moves in the calendar too, and that grid is
             // drawn from the .ics rather than from this JSON, so both have to
             // be re-read or the two would disagree until the next reload.
-            onReload={async () => { await load(false); await loadCalendar(false); }}
+            onReload={reloadAll}
             onBack={() => go(HOME)}
             me={data.me}
             onLogout={logout}
@@ -453,6 +471,7 @@ export default function App() {
           courses={data.courses}
           standings={data.standings}
           order={order}
+          onOpenAssignment={openAssignment}
         />
 
         <div className="board">
@@ -462,6 +481,7 @@ export default function App() {
             error={calError}
             onReload={() => loadCalendar(false)}
             onOpenAssignment={openAssignment}
+            onAdd={(day) => setAdding({ day })}
             order={order}
           />
           <DueList
@@ -475,8 +495,29 @@ export default function App() {
         )}
       </main>
 
-      {drawer && (
+      {drawer && (drawer.ownId ? (
+        // Looked up afresh on every render, so an edit shows the moment it saves.
+        ownItem && (
+          <OwnItemDrawer
+            key={ownItem.own_id}
+            item={ownItem}
+            courses={data.courses}
+            onChanged={reloadAll}
+            onClose={() => setDrawer(null)}
+          />
+        )
+      ) : (
         <AssignmentDrawer target={drawer} onClose={() => setDrawer(null)} />
+      ))}
+
+      {adding && (
+        <AddItem
+          courses={data.courses}
+          day={adding.day}
+          courseId={adding.courseId}
+          onSaved={reloadAll}
+          onClose={() => setAdding(null)}
+        />
       )}
 
       {welcome && (

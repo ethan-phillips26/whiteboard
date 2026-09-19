@@ -3,6 +3,7 @@
 // everything that has to be remembered lives in IndexedDB (browser/store.js).
 
 import { save } from "./lib/download.js";
+import { cmp } from "./browser/text.js";
 import { ask, present } from "./browser/bridge.js";
 import { DEMO, modeUrl } from "./browser/mode.js";
 import * as E from "./browser/edits.js";
@@ -11,6 +12,7 @@ import * as G from "./browser/grades.js";
 import * as google from "./browser/google.js";
 import * as ics from "./browser/ics.js";
 import * as N from "./browser/notices.js";
+import * as own from "./browser/own.js";
 import * as search from "./browser/search.js";
 import * as store from "./browser/store.js";
 import * as sync from "./browser/sync.js";
@@ -62,11 +64,20 @@ async function state(refresh = false) {
   // has to name them to offer them back.
   const withHidden = E.applyAssignments(due.items ?? [], edits, { keepHidden: true });
   const { items: _items, ...meta } = due;
+  // The student's own items are all returned, done or long past, because the
+  // drawer that edits one looks it up here; only the outstanding ones join the
+  // deadlines.
+  const mine = own.asAssignments(await own.load(), courses);
+  // Handed-in work stays in the store for the calendar; it is not outstanding.
+  const outstanding = withHidden.filter((a) => !a.hidden && !a.submitted)
+    .concat(mine.filter((a) => own.outstanding(a)))
+    .sort((a, b) => cmp(a.due_utc || "9999", b.due_utc || "9999"));
   return {
     me: (await store.getData("me")) ?? {},
     courses,
-    assignments: withHidden.filter((a) => !a.hidden),
-    hidden_assignments: withHidden.filter((a) => a.hidden),
+    assignments: outstanding,
+    own_items: mine,
+    hidden_assignments: withHidden.filter((a) => a.hidden && !a.submitted),
     assignment_meta: meta,
     announcements,
     standings,
@@ -87,10 +98,27 @@ async function calendar(refresh = false) {
   }
   const due = (await store.getData("assignments")) ?? {};
   const given = ((await store.getData("me"))?.name?.given ?? "").trim();
-  return ics.build(E.applyAssignments(due.items ?? [], await E.load()), {
+  const courses = (await store.getData("courses")) ?? [];
+  const items = E.applyAssignments(due.items ?? [], await E.load())
+    .concat(own.asAssignments(await own.load(), courses));
+  return ics.build(items, {
     calname: given ? `${given}'s coursework` : "Coursework",
     description: "Assignment due dates from Blackboard. Read-only.",
   });
+}
+
+/** An item as the form sent it, checked. A new one needs a title and a date. */
+function ownFields(fields, creating) {
+  const out = { ...fields };
+  if ("title" in out) out.title = String(out.title ?? "").trim();
+  if ("description" in out) out.description = String(out.description ?? "").trim();
+  if ((creating || "title" in out) && !out.title) throw failure("Give it a title.", 400);
+  if (creating || "due_utc" in out) {
+    if (!out.due_utc || !E.reparse(out.due_utc)) throw failure("Give it a due date.", 400);
+    out.due_utc = E.reparse(out.due_utc).toISOString();
+  }
+  if ("done" in out) out.done = !!out.done;
+  return out;
 }
 
 export const api = {
@@ -200,6 +228,16 @@ export const api = {
     return E.setAssignment(key, clean);
   },
   resetAssignment: (key) => E.clearAssignment(key),
+
+  // The student's own items: work Blackboard was never told about. They are as
+  // local as the edits above — nothing is written anywhere but this browser.
+  addItem: async (fields) => own.add(ownFields(fields, true)),
+  editItem: async (id, patch) => {
+    const item = await own.update(id, ownFields(patch, false));
+    if (!item) throw failure("That item is no longer here.", 404);
+    return item;
+  },
+  removeItem: (id) => own.remove(id),
   editWeights: async (courseId, weights) => {
     for (const [label, pct] of Object.entries(weights ?? {})) {
       if (!(pct >= 0 && pct <= 100)) throw failure(`"${label}": ${pct} is not a percentage.`, 400);

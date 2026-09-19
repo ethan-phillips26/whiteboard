@@ -7,14 +7,40 @@ import { Sep } from "./Sep.jsx";
 
 const MAX_CHIPS = 3;
 
+// Whether finished work is drawn. A preference of this screen, like the theme,
+// so it is kept in the browser rather than the cache logging out empties.
+const SHOW_DONE = "calendar-show-done";
+
+function storedShowDone() {
+  try {
+    return localStorage.getItem(SHOW_DONE) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+/** How many of a day's events are still to do. */
+const todo = (list) => (list ?? []).filter((e) => !e.submitted).length;
+
 export default function Calendar({ events, loading, error, onReload,
-                                   onOpenAssignment, order }) {
+                                   onOpenAssignment, onAdd, order }) {
   const today = useMemo(() => new Date(), []);
   const [month, setMonth] = useState(
     () => new Date(today.getFullYear(), today.getMonth(), 1)
   );
   const [selected, setSelected] = useState(null);
   const [only, setOnly] = useState(null);
+  const [showDone, setShowDone] = useState(storedShowDone);
+
+  function toggleDone() {
+    const next = !showDone;
+    setShowDone(next);
+    try {
+      localStorage.setItem(SHOW_DONE, String(next));
+    } catch {
+      // Storage blocked: the choice holds until the page is reloaded.
+    }
+  }
   const jumped = useRef(false);
   const closeRef = useRef(null);
 
@@ -49,9 +75,11 @@ export default function Calendar({ events, loading, error, onReload,
   );
 
   const visible = useMemo(
-    () => (only ? events.filter((e) => e.course === only) : events),
-    [events, only]
+    () => events.filter((e) =>
+      (!only || e.course === only) && (showDone || !e.submitted)),
+    [events, only, showDone]
   );
+  const anyDone = useMemo(() => events.some((e) => e.submitted), [events]);
 
   const byDay = useMemo(() => {
     const map = new Map();
@@ -60,13 +88,16 @@ export default function Calendar({ events, loading, error, onReload,
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(e);
     }
-    for (const list of map.values()) list.sort((a, b) => a.due - b.due);
+    // What is still to do comes first, so it is what the cell's few chips show.
+    for (const list of map.values()) {
+      list.sort((a, b) => a.submitted - b.submitted || a.due - b.due);
+    }
     return map;
   }, [visible]);
 
   const cells = useMemo(() => monthGrid(month), [month]);
   const monthCount = cells.reduce(
-    (n, c) => n + (c.inMonth ? byDay.get(c.key)?.length ?? 0 : 0), 0
+    (n, c) => n + (c.inMonth ? todo(byDay.get(c.key)) : 0), 0
   );
   const selectedEvents = selected ? byDay.get(selected) ?? [] : [];
 
@@ -94,6 +125,10 @@ export default function Calendar({ events, loading, error, onReload,
                   ? "this month" : `in ${MONTHS[month.getMonth()]}`}`}
         </span>
         <div className="spacer" />
+        <button className="cal-add" onClick={() => onAdd(null)}
+                title="Add something Blackboard doesn't know about">
+          + Add
+        </button>
         <div className="joined">
           <button onClick={() => shift(-1)} aria-label="Previous month">‹</button>
           <button onClick={goToday}>Today</button>
@@ -114,18 +149,23 @@ export default function Calendar({ events, loading, error, onReload,
       <div className="cal-grid">
         {cells.map((cell) => {
           const list = byDay.get(cell.key) ?? [];
+          const left = todo(list);
+          const done = list.length - left;
+          // A day of finished work is not a day with something due.
+          const summary = left ? `${left} due` : done ? `${done} done` : "nothing due";
           const isToday = sameDay(cell.date, today);
           const className =
             "cal-cell" +
             (cell.inMonth ? "" : " out") +
             (isToday ? " today" : "") +
-            (selected === cell.key ? " sel" : "") +
-            (list.length ? " has" : "");
+            (selected === cell.key ? " sel" : "");
           // A day is one target. The chips are a preview of what is in it, not
           // controls of their own — picking one assignment out of a 60px cell
           // was a small target next to a large one that did something else, and
           // the day it opens lists the same assignments at a size you can read.
-          // With nothing interactive inside it, the cell can be the button.
+          // With nothing interactive inside it, the cell can be the button — on
+          // an empty day too, since opening a day is also how something is
+          // added to it.
           const chips = (
             <>
               <div className="cal-num">{cell.date.getDate()}</div>
@@ -133,9 +173,10 @@ export default function Calendar({ events, loading, error, onReload,
                 <span
                   key={e.uid}
                   className={"chip s" + courseSlot(e.course, order) +
-                             (e.due < today ? " past" : "")}
+                             (e.submitted ? " done" : e.due < today ? " past" : "")}
                   title={`${e.summary}\n${time(e.due)}${
-                    e.points ? ` · ${points(e.points)}` : ""}`}
+                    e.points ? ` · ${points(e.points)}` : ""}${
+                    e.submitted ? ` · ${e.ownId ? "done" : "submitted"}` : ""}`}
                 >
                   <span className="chip-t">{e.title || e.summary}</span>
                 </span>
@@ -146,23 +187,25 @@ export default function Calendar({ events, loading, error, onReload,
               {/* Narrow screens have no room for the chips; a count keeps the
                   day legible without leaving colour as the only signal. */}
               {list.length > 0 && (
-                <span className="cal-count">{list.length} due</span>
+                // "1 done" does not fit a phone's cell; a tick does, and the
+                // day's label still says it in words.
+                <span className={"cal-count" + (left ? "" : " done")}>
+                  {left ? summary : `${done} ✓`}
+                </span>
               )}
             </>
           );
 
-          return list.length ? (
+          return (
             <button
               key={cell.key}
               type="button"
               className={className}
-              aria-label={`${longDate(cell.date)} — ${list.length} due`}
+              aria-label={`${longDate(cell.date)} — ${summary}`}
               onClick={() => setSelected(cell.key)}
             >
               {chips}
             </button>
-          ) : (
-            <div key={cell.key} className={className}>{chips}</div>
           );
         })}
       </div>
@@ -185,6 +228,14 @@ export default function Calendar({ events, loading, error, onReload,
               Show all courses
             </button>
           )}
+          {anyDone && (
+            // Says what pressing it does: a pressed-looking chip beside the
+            // course filters left it unclear which state was which.
+            <button className="lg lg-done" onClick={toggleDone}
+                    title="Submitted assignments and items marked done">
+              {showDone ? "Hide completed" : "Show completed"}
+            </button>
+          )}
         </div>
       )}
 
@@ -203,27 +254,42 @@ export default function Calendar({ events, loading, error, onReload,
               <button ref={closeRef} onClick={() => setSelected(null)}>Close</button>
             </div>
             <div className="modal-body">
+          {!selectedEvents.length && <p className="empty">Nothing due.</p>}
           {selectedEvents.map((e) => (
             <button
               key={e.uid}
-              className={"detail s" + courseSlot(e.course, order)}
+              className={"detail s" + courseSlot(e.course, order) +
+                         (e.submitted ? " done" : "")}
               onClick={() => { setSelected(null); onOpenAssignment(e); }}
             >
               <div className="detail-head">
                 <i className="dot" />
                 <b>{e.title || e.summary}</b>
+                {e.ownId && <span className="flag">yours</span>}
                 <span className="course">{e.course}</span>
               </div>
               <div className="note dim">
-                Due {time(e.due)}<Sep />{relative(e.due)}
+                {/* Handed-in work is not overdue, however long ago it was due. */}
+                Due {time(e.due)}{e.submitted ? null : <><Sep />{relative(e.due)}</>}
                 {e.points ? <><Sep />{points(e.points)}</> : null}
-                {e.submitted ? <><Sep />submitted</> : null}
+                {e.submitted ? <><Sep />{e.ownId ? "done" : "submitted"}</> : null}
               </div>
               {e.courseName && e.courseName !== e.course && (
                 <div className="note dim">{e.courseName}</div>
               )}
             </button>
           ))}
+            </div>
+            <div className="modal-foot">
+              <button onClick={() => {
+                const day = new Date(`${selected}T12:00:00`);
+                // Closed first: the day's modal answers Escape without asking
+                // what is over it, so it cannot stay up under the form.
+                setSelected(null);
+                onAdd(day);
+              }}>
+                + Add to this day
+              </button>
             </div>
           </div>
         </>

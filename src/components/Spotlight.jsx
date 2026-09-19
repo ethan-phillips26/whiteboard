@@ -120,8 +120,8 @@ export default function Spotlight({ data, order, commands, onOpenAssignment,
       case "assignment":
         onOpenAssignment({
           courseId: record.courseId, contentId: record.contentId,
-          columnId: record.columnId, title: record.title, course: record.course,
-          points: record.points,
+          columnId: record.columnId, ownId: record.ownId,
+          title: record.title, course: record.course, points: record.points,
           due: record.due ? new Date(record.due) : null,
         });
         break;

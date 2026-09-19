@@ -312,7 +312,9 @@ function DeadlineRow({ item, edit, onSaved, showCourse = true }) {
 /** What is worth saying about a course before you open it. */
 function courseSummary(course, data) {
   const id = course.course_id;
-  const due = data.assignments.filter((a) => a.course_id === id).length;
+  // The student's own items are changed where they are opened, not here: this
+  // screen is for correcting what Blackboard said.
+  const due = data.assignments.filter((a) => a.course_id === id && !a.own).length;
   const hidden = (data.hidden_assignments ?? [])
     .filter((a) => a.course_id === id).length;
   const standing = data.standings[id];
@@ -359,7 +361,7 @@ function CourseSettings({ course, data, onReload, onBack }) {
   const id = course.course_id;
   const edits = data.edits ?? { assignments: {}, weights: {} };
   const mine = useMemo(
-    () => data.assignments.filter((a) => a.course_id === id),
+    () => data.assignments.filter((a) => a.course_id === id && !a.own),
     [data.assignments, id]
   );
   const hidden = useMemo(

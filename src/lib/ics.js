@@ -81,6 +81,7 @@ const X = {
   "X-BB-COURSE-ID": "courseId",
   "X-BB-COLUMN-ID": "columnId",
   "X-BB-CONTENT-ID": "contentId",
+  "X-BB-OWN-ID": "ownId",
   "X-BB-TITLE": "title",
 };
 
@@ -182,6 +183,7 @@ function finish(event) {
     courseId: event.courseId ?? null,
     columnId: event.columnId ?? null,
     contentId: event.contentId ?? null,
+    ownId: event.ownId ?? null,
     title: event.title ?? splitSummary(event.summary).title,
     points: event.points,
     submitted: event.submitted,

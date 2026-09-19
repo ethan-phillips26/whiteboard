@@ -41,8 +41,14 @@ async function courseBundle(bb, courseId, uid) {
   };
 }
 
-/** What is outstanding, due from three days ago to sixty days out, from the
- * gradebook bundles already fetched. */
+/** Deadlines from the gradebook bundles already fetched: what is outstanding,
+ * due from three days ago to sixty days out, and what has been handed in.
+ *
+ * Handed-in work is kept for the calendar, which draws it struck through, and
+ * has no lower bound — seeing what was done is the point of it. Missed work
+ * keeps the three-day bound: a column nobody was ever meant to submit to
+ * (attendance, participation) would otherwise cover every past day. The screens
+ * that list what is outstanding filter on `submitted`. */
 function dueDates(kept, { daysAhead = 60, daysBack = 3 } = {}) {
   const now = Date.now();
   const from = now - daysBack * DAY;
@@ -58,7 +64,7 @@ function dueDates(kept, { daysAhead = 60, daysBack = 3 } = {}) {
       // Calculated columns (Overall Grade, Weighted Total) are not work.
       if (!isAssignmentColumn(col)) continue;
       const due = parseBbTime(col.grading?.due);
-      if (!due || due < from || due > to) continue;
+      if (!due || due > to) continue;
       const st = bundle.grades[col.id] ?? {};
       const display = st.displayGrade ?? {};
       const score = "score" in display ? display.score : (st.score ?? null);
@@ -66,7 +72,7 @@ function dueDates(kept, { daysAhead = 60, daysBack = 3 } = {}) {
       // submission still has no score, so both signals count.
       const submitted = ["Graded", "NeedsGrading", "Completed"].includes(st.status) ||
         score != null || st.exempt === true;
-      if (submitted) continue;
+      if (!submitted && due < from) continue;
       items.push({
         title: col.name || "(untitled assignment)",
         course: courseLabel(course),
@@ -87,7 +93,7 @@ function dueDates(kept, { daysAhead = 60, daysBack = 3 } = {}) {
   }
   items.sort((a, b) => cmp(a.due_utc, b.due_utc));
   return {
-    count: items.length,
+    count: items.filter((i) => !i.submitted).length,
     window: { from: new Date(from).toISOString(), to: new Date(to).toISOString() },
     courses_checked: kept.length,
     terms: [...new Set(kept.map(([c]) => c.term).filter(Boolean))].sort(),
@@ -104,6 +110,8 @@ async function trackNew(due, announcements) {
   const newAssignments = [];
   const newAnnouncements = [];
   for (const item of due.items ?? []) {
+    // Work already handed in is never news, however recently it appeared.
+    if (item.submitted) continue;
     const key = item.column_id || item.content_id;
     if (key && !(key in assignments)) {
       assignments[key] = nowIso();

@@ -44,12 +44,40 @@ export function visibleLength(text) {
   );
 }
 
-export default function RichText({ text }) {
+// A pasted address, stopping short of the punctuation that ends the sentence
+// around it.
+const BARE = /https?:\/\/[^\s<>]*[^\s<>.,;:!?)\]'"]/g;
+
+/** Plain text with any pasted address made clickable. */
+function withBare(text, keyAt) {
+  const out = [];
+  let at = 0;
+  for (const match of text.matchAll(BARE)) {
+    if (match.index > at) out.push(text.slice(at, match.index));
+    out.push(
+      <a className="link" key={`${keyAt}-${match.index}`} href={match[0]}
+         target="_blank" rel="noreferrer noopener">
+        {match[0]}
+      </a>
+    );
+    at = match.index + match[0].length;
+  }
+  if (at < text.length) out.push(text.slice(at));
+  return out;
+}
+
+/**
+ * `bare` also links an address written out in full. Course text leaves those
+ * alone — Blackboard hands over every real link as an anchor — but what the
+ * student types into their own item is pasted addresses and nothing else.
+ */
+export default function RichText({ text, bare = false }) {
   const source = text ?? "";
+  const plain = (s, keyAt) => (bare ? withBare(s, keyAt) : [s]);
   const out = [];
   let at = 0;
   for (const match of links(source)) {
-    if (match.index > at) out.push(source.slice(at, match.index));
+    if (match.index > at) out.push(...plain(source.slice(at, match.index), at));
     out.push(
       <a
         className="link"
@@ -63,6 +91,6 @@ export default function RichText({ text }) {
     );
     at = match.index + match[0].length;
   }
-  if (at < source.length) out.push(source.slice(at));
+  if (at < source.length) out.push(...plain(source.slice(at), at));
   return out;
 }
