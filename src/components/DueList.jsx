@@ -50,9 +50,13 @@ export default function DueList({ assignments, firstSeen, onOpenAssignment, orde
                     <b title={a.title}>{a.title}</b>
                     {isNew && <span className="badge-new">new</span>}
                   </span>
+                  {/* Each fact in a span of its own: the rail is narrow, and a
+                      line that has to break should break between two of them
+                      rather than through "11:59 PM". */}
                   <span className="entry-meta">
-                    {a.course}<Sep />{due ? dateTime(due) : "no due date"}
-                    {pts ? <><Sep />{pts}</> : null}
+                    <span>{a.course}</span><Sep />
+                    <span>{due ? dateTime(due) : "no due date"}</span>
+                    {pts ? <><Sep /><span>{pts}</span></> : null}
                   </span>
                 </span>
                 <span className={"when " + (overdue ? "bad" : urgent ? "soon" : "later")}>

@@ -148,7 +148,7 @@ export default function Submissions({ courseId, columnId, possible, onView }) {
       )}
       {error && <p className="err">{error}</p>}
       {data?.closed && (
-        <p className="note">
+        <p className="notice">
           Your school doesn't let students read submissions through Blackboard's API,
           so they can only be seen in Blackboard itself.
         </p>

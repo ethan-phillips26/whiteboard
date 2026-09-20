@@ -184,15 +184,17 @@ export default function AssignmentDrawer({ target, onClose }) {
         </div>
 
         <div className="drawer-body">
-          {first && submissions}
-
+          {/* Why the rest of the drawer is as short as it is, so it is read
+              before the emptiness it explains rather than under it. */}
           {!contentId && (
-            <p className="note">
+            <p className="notice">
               This is a manually created gradebook column — there is no content item
               behind it in Blackboard, so it has no instructions or files to fetch.
               Look for the material under the course's Materials tab.
             </p>
           )}
+
+          {first && submissions}
 
           {loading && <p className="empty"><span className="spin" /> Reading the assignment…</p>}
           {error && <p className="err">{error}</p>}

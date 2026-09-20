@@ -97,10 +97,13 @@ export default function StatRow({ assignments, courses, standings = {}, order,
               </button>
               <div className={"band-meta s" + courseSlot(next.course, order)}>
                 <i className="dot" />
+                {/* One span per fact: squeezed, the line breaks between two
+                    of them rather than through the middle of the date. */}
                 <span>
-                  {next.course}<Sep />{dateTime(next.due)}
+                  <span className="course-code">{next.course}</span><Sep />
+                  <span>{dateTime(next.due)}</span>
                   {points(next.points_possible)
-                    ? <><Sep />{points(next.points_possible)}</> : null}
+                    ? <><Sep /><span>{points(next.points_possible)}</span></> : null}
                 </span>
               </div>
             </>

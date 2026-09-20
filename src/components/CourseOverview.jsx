@@ -1,9 +1,8 @@
-import { ago, dateTime, points, relative } from "../lib/format.js";
+import { dateTime, points, relative } from "../lib/format.js";
+import AnnouncementList from "./AnnouncementList.jsx";
 import { Sep } from "./Sep.jsx";
-import RichText, { clamp, visibleLength } from "./RichText.jsx";
 
 const PREVIEW = 6;
-const ANN_CLAMP = 260;
 
 /**
  * The course's front page: what is due, what was said, and where the grade
@@ -122,34 +121,14 @@ export default function CourseOverview({ standing, assignments, announcements,
           )}
         </div>
 
+        {/* The same rows the announcements screen draws. This screen used to
+            keep a copy of them, which drifted: a long post was cut here with no
+            way to read the rest of it. Without an `order` there is no swatch and
+            no course chip, which is right on a course's own page. */}
         {recent.length === 0 ? (
           <p className="empty">Nothing posted in this course.</p>
         ) : (
-          recent.map((a, i) => {
-            const body = (a.body ?? "").trim();
-            return (
-              <div className="ann" key={a.id ?? i}>
-                <div className="ann-body">
-                  <div className="ann-top">
-                    <b>{a.title || "(untitled)"}</b>
-                    {a.posted && (
-                      <span className="note dim"
-                            title={new Date(a.posted).toLocaleString()}>
-                        {ago(new Date(a.posted))}
-                      </span>
-                    )}
-                  </div>
-                  {body && (
-                    <p className="ann-text">
-                      <RichText text={visibleLength(body) > ANN_CLAMP
-                        ? `${clamp(body, ANN_CLAMP)}…`
-                        : body} />
-                    </p>
-                  )}
-                </div>
-              </div>
-            );
-          })
+          <AnnouncementList announcements={recent} />
         )}
       </section>
     </>

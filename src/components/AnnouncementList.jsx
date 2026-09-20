@@ -42,11 +42,11 @@ export default function AnnouncementList({ announcements, firstSeen, since,
             {isNew && <span className="badge-new">new</span>}
             {order && <span className="course">{a.course}</span>}
             {a.posted && (
-              <span className="note dim" title={new Date(a.posted).toLocaleString()}>
+              <span className="note dim ann-time"
+                    title={new Date(a.posted).toLocaleString()}>
                 {ago(new Date(a.posted))}
               </span>
             )}
-
           </div>
           {body && (
             <p className="ann-text">

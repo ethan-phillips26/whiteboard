@@ -413,6 +413,12 @@ textarea { line-height: 1.55; resize: vertical; }
   position: relative;
 }
 .panel:last-child { margin-bottom: 0; }
+/* A panel's last line is usually a `p` carrying the browser's own margin, which
+   lands on top of the panel's padding and opens a gap twice the size of the one
+   above it. The panel owns its own bottom edge. */
+.panel > :last-child, .drawer-body > :last-child, .modal-body > :last-child {
+  margin-bottom: 0;
+}
 
 .panel-head {
   display: flex; align-items: center; gap: 6px 10px;
@@ -454,8 +460,11 @@ textarea { line-height: 1.55; resize: vertical; }
   display: grid; gap: 14px; align-items: start;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 }
+/* Two panels side by side, each as tall as what is in it. Stretched to match,
+   the shorter one — a course's two-line "at a glance" beside a list of six
+   deadlines — was mostly empty panel. */
 .split {
-  display: grid; gap: 16px; align-items: stretch;
+  display: grid; gap: 16px; align-items: start;
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
 }
 .split > .panel { margin-bottom: 0; }
@@ -549,6 +558,16 @@ textarea { line-height: 1.55; resize: vertical; }
 .when.soon { color: var(--tone-soon-fg); background: var(--tone-soon-bg); border-color: var(--tone-soon-bd); }
 .when.bad { color: var(--tone-od-fg); background: var(--tone-od-bg); border-color: var(--tone-od-bd); }
 
+/* A fact about the whole screen that is not a failure — why there is nothing
+   here, or what this thing actually is. Set on paper so it reads as a note in
+   the margin rather than another section of the page. */
+.notice {
+  margin: 0 0 16px; padding: 11px 13px; font-size: 13px; line-height: 1.55;
+  color: var(--ink-2); background: var(--paper);
+  border: 1px solid var(--rule); border-radius: var(--r-panel);
+  max-width: 78ch;
+}
+
 .warn-box {
   border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
   background: color-mix(in srgb, var(--warn) 10%, transparent);
@@ -627,14 +646,20 @@ textarea { line-height: 1.55; resize: vertical; }
 }
 .band.late .band-num { color: var(--danger); }
 .band-detail { min-width: 0; padding-left: 20px; border-left: 1px solid var(--on-ink-rule); }
+/* Two lines before it gives up. On a laptop the band is wide enough for the
+   three figures and not much else, and one line cut the headline deadline —
+   the thing the whole screen is built around — off in the middle of its name. */
 .band-title {
   font: 600 15.5px/1.3 var(--font-ui);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 /* It is a button only so it can be pressed; on the band it is still the title,
-   with the underline saying it opens. */
+   with the underline saying it opens — and so it sheds the button's `nowrap`,
+   which held the whole name on one line and pushed the hero out from under the
+   figures beside it. */
 button.band-title {
-  display: block; max-width: 100%; min-height: 0; padding: 0; border: 0;
+  max-width: 100%; min-height: 0; padding: 0; border: 0; white-space: normal;
   border-radius: 0; background: transparent; color: inherit; text-align: left;
 }
 button.band-title:hover:not(:disabled) {
@@ -643,13 +668,14 @@ button.band-title:hover:not(:disabled) {
 }
 button.band-title:focus-visible { outline-color: var(--on-ink); }
 .band-meta {
-  display: flex; align-items: center; gap: 7px; min-width: 0; margin-top: 7px;
+  display: flex; align-items: center; gap: 4px 7px; min-width: 0; margin-top: 7px;
+  flex-wrap: wrap;
   font: 400 11px/1.3 var(--font-mono); color: var(--on-ink-2);
 }
-.band-meta > span {
-  text-transform: uppercase;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+.band-meta > span { min-width: 0; text-transform: uppercase; overflow-wrap: anywhere; }
+/* Each fact whole, so a squeezed band breaks between two of them rather than
+   through a date. */
+.band-meta > span > span { white-space: nowrap; }
 
 .band-stats { flex: none; display: flex; }
 .stat { min-width: 132px; padding: 16px 20px 17px; border-left: 1px solid var(--on-ink-rule); }
@@ -669,6 +695,12 @@ button.band-title:focus-visible { outline-color: var(--on-ink); }
 /* ---------------------------------------------------------------- calendar */
 
 .cal { min-width: 0; }
+/* The month's name, its count and its controls. At the narrowest width the board
+   is still two columns they do not all fit on one line, and unwrapped the month
+   buttons ran out over the deadline rail beside them — so the head wraps, and
+   whatever wraps stays at its right edge rather than starting a new left one. */
+.cal .sheet-head { flex-wrap: wrap; align-items: center; row-gap: 6px; }
+.cal .sheet-head .joined { margin-left: auto; }
 /* Sits beside the month's own controls, and is quieter than them. */
 .cal .sheet-head .cal-add { min-height: 30px; padding: 4px 11px; flex: none; }
 
@@ -768,7 +800,12 @@ button.lg-done { margin-left: auto; }
 /* A column flex row still inherits align-items:center from `button`, which
    centred every line of a day's detail. */
 .detail { flex-direction: column; align-items: flex-start; gap: 3px; padding-block: 10px; }
-.detail-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* The column would otherwise shrink this line to its own content, and anything
+   inside it asking to sit at the right edge — the palette's kind, a date — had
+   no width to be pushed to. */
+.detail-head {
+  display: flex; align-self: stretch; align-items: center; gap: 8px; flex-wrap: wrap;
+}
 
 .due-list > .due:first-child, .modal-body > .detail:first-child { border-top: 0; }
 .due .dot { margin-top: 6px; }
@@ -809,7 +846,10 @@ button.lg-done { margin-left: auto; }
   min-width: 0; font: 500 13.5px/1.25 var(--font-ui);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.entry-meta { font: 400 10.5px/1.3 var(--font-mono); color: var(--ink-3); }
+/* Each fact is one unbroken run, so a row too narrow for the line breaks
+   between facts rather than through the middle of a time. */
+.entry-meta { font: 400 10.5px/1.4 var(--font-mono); color: var(--ink-3); }
+.entry-meta > span { white-space: nowrap; }
 
 /* ----------------------------------------------------------- course cards */
 
@@ -944,6 +984,11 @@ table.items tr:hover td { background: var(--hover); }
   color: var(--ink-2); width: 1%;
 }
 .it-sub { width: 1%; white-space: nowrap; text-align: right; padding-left: 14px !important; }
+/* On every row of the table, so it is said quietly: nine links in link blue
+   read as the point of the screen, and the scores are. */
+.it-sub .linkish { color: var(--ink-3); font-weight: 400; }
+.it-sub .linkish:hover:not(:disabled) { color: var(--link); }
+table.items tr:hover .it-sub .linkish { color: var(--link); }
 
 .calc { margin-top: 2px; }
 .calc .controls {
@@ -972,8 +1017,11 @@ table.items tr:hover td { background: var(--hover); }
 .ann:first-of-type, .panel-head + .ann { border-top: none; padding-top: 2px; }
 .ann .dot { margin-top: 7px; }
 .ann-body { min-width: 0; flex: 1; }
-.ann-top { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.ann-top { display: flex; align-items: baseline; gap: 4px 9px; flex-wrap: wrap; }
 .ann-top b { font-weight: 650; }
+/* When it was posted is the one fact every row has, so it gets a column of its
+   own at the right rather than trailing whatever the title left behind. */
+.ann-time { flex: none; margin-left: auto; }
 .ann-text {
   margin: 5px 0 0; font-size: 13px; color: var(--ink-2); max-width: 78ch;
   white-space: pre-wrap; overflow-wrap: anywhere;
@@ -1044,9 +1092,22 @@ table.items tr:hover td { background: var(--hover); }
 .own-modal .modal-body { padding-top: 12px; }
 .own-modal .modal-body > .note { margin: 0 0 14px; }
 .own-form { display: grid; gap: 12px; }
-.own-form .set-actions { margin-top: 2px; }
+/* In a modal the way out of the form sits on the modal's own bottom edge,
+   ruled off from the fields — loose under the last one it read as one more
+   field rather than as the end of the form. */
+.own-modal .own-form > .set-actions {
+  margin: 4px -18px -14px; padding: 13px 18px 14px;
+  border-top: 1px solid var(--rule);
+}
 .own-when { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }
 .drawer-body .own-foot { margin-top: 18px; }
+/* What can be done to the thing the drawer is about, ruled off from the thing
+   itself the way every other section of a drawer is. */
+.drawer-body > .set-actions {
+  margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--rule);
+}
+/* Inside the form it is the form's own footer, and already ruled. */
+.drawer-body .own-form > .set-actions { margin-top: 2px; padding-top: 0; border-top: 0; }
 
 .instructions {
   margin: 0; font: inherit; font-size: 13.5px; line-height: 1.65;
@@ -1054,7 +1115,9 @@ table.items tr:hover td { background: var(--hover); }
   max-width: 78ch;
 }
 
-.drawer-files, .drawer-section { margin-top: 24px; border-top: 1px solid var(--rule); padding-top: 16px; }
+.drawer-files, .drawer-section {
+  margin-top: 22px; border-top: 1px solid var(--rule); padding-top: 18px;
+}
 /* A section that leads the drawer has nothing above it to be ruled off from. */
 .drawer-body > .drawer-section:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
 
@@ -1079,12 +1142,12 @@ table.items tr:hover td { background: var(--hover); }
    on the row rather than one above the list and one beside each name, which was
    two different places to press for one file. */
 .filerow {
-  /* The icon's width and the gap after it are what the second line has to clear
-     to sit under the name, so both are named once here and used by both. */
+  /* The icon's width and the gap after it are what a wrapped line has to clear,
+     so both are named once here. */
   --fileext-w: 42px;
   --filerow-gap: 12px;
   display: flex; align-items: center; gap: 8px var(--filerow-gap); flex-wrap: wrap;
-  padding: 11px 0; border-top: 1px solid var(--rule); font-size: 13px;
+  padding: 9px 0; border-top: 1px solid var(--rule); font-size: 13px;
 }
 .panel-head + .filerow { border-top: none; padding-top: 2px; }
 
@@ -1096,8 +1159,11 @@ table.items tr:hover td { background: var(--hover); }
   border: 1px solid var(--rule); border-radius: var(--r-panel); padding: 3px 0;
   overflow: hidden;
 }
+/* Wide enough to read a filename in before the row gives up and wraps: it is
+   this floor, not the actions' willingness to shrink, that decides where the
+   break happens. */
 .fileid {
-  flex: 1 1 220px; min-width: 0;
+  flex: 1 1 240px; min-width: 200px;
   display: flex; align-items: baseline; gap: 9px;
 }
 .filerow .fn {
@@ -1108,15 +1174,14 @@ table.items tr:hover td { background: var(--hover); }
   flex: none; color: var(--ink-3); font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
-/* Their own line, flush with the row's left edge — under the type chip, so the
-   whole row squares off against the same margin as everything else in the panel.
-   A filename is as long as the instructor made it and these are three or four
-   buttons;
-   sharing one line meant the name ellipsed away to leave room for them, and on
-   a narrow drawer it wrapped anyway — so it wraps on purpose, and every row
-   breaks in the same place instead of each one deciding for itself. */
+/* At the end of the name's own line while both fit, and on a line of their own
+   when they do not — a filename is as long as the instructor made it, and
+   ellipsing it away to keep three buttons company is the wrong trade. Either
+   way they end at the row's right edge, so the group reads as one thing
+   wherever it lands and the buttons line up down the list. */
 .filerow-actions {
-  flex: 0 0 100%; display: flex; gap: 8px; justify-content: flex-start;
+  flex: 0 0 auto; margin-left: auto;
+  display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;
 }
 .filerow-actions button, .filerow-actions .btn { min-height: 30px; padding: 4px 11px; font-size: 12.5px; }
 
@@ -1241,8 +1306,14 @@ table.items tr:hover td { background: var(--hover); }
 
 .set-note { max-width: 68ch; margin: 0 0 14px; }
 .set-search { margin-bottom: 12px; }
+/* What follows the field reports on it — how many matched, when this was last
+   read — so it sits under it as a caption rather than as a new paragraph. */
+.set-search + .note, .set-search + .err { margin-top: 0; }
+.set-search ~ .note { margin-block: 4px 0; }
 
-.set-course { padding: 2px 0 0; }
+/* A form, not a table: a category's name and the two characters it is worth
+   belong within reading distance of each other, however wide the panel is. */
+.set-course { padding: 2px 0 0; max-width: 560px; }
 .set-course-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; flex-wrap: wrap; }
 
 .set-weight {
@@ -1381,9 +1452,20 @@ table.items tr:hover td { background: var(--hover); }
   border: 1px solid var(--rule); border-radius: 4px; padding: 2px 4px;
 }
 
-.set-card { min-height: 0; gap: 10px; }
+/* A course to open, not a figure to read: what it says fits in two lines, so it
+   is shaped as a row rather than as a card with a footer. Ruled off and given a
+   grade card's 40px footer, every course that had never been corrected carried a
+   band of empty panel under it with nothing in it but the arrow. */
+.set-card {
+  min-height: 0; gap: 6px 12px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+}
+.set-card > :not(.ccard-foot) { grid-column: 1; }
 .set-card-meta { display: flex; flex-direction: column; gap: 3px; }
-.set-card .ccard-foot { min-height: 40px; }
+.set-card .ccard-foot {
+  grid-column: 2; grid-row: 1 / span 2; align-self: center;
+  margin: 0; padding: 0; border: 0; min-height: 0;
+}
 
 .set-hidden { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rule); }
 .set-hidden .label { display: block; margin-bottom: 4px; }
@@ -1428,6 +1510,10 @@ table.items tr:hover td { background: var(--hover); }
 /* One card holding the whole tree, rather than a card per folder: a course is
    a list of weeks, and twelve identical floating bars is not a list. */
 .mat-tree {
+  /* The column the kind chip sits in. A folder's caret takes the same width, so
+     a week's name and the name of what is inside it start at the same place
+     instead of two indents apart. */
+  --mat-kind-w: 92px;
   background: var(--panel); border: 1px solid var(--rule);
   border-radius: var(--r-panel); overflow: hidden;
 }
@@ -1451,7 +1537,7 @@ table.items tr:hover td { background: var(--hover); }
 
 .caret {
   display: inline-block; color: var(--ink-3); font-size: 15px; line-height: 1;
-  flex: none; width: 10px; text-align: center;
+  flex: none; width: var(--mat-kind-w, 10px); text-align: center;
 }
 .caret.open { transform: rotate(90deg); }
 
@@ -1484,7 +1570,7 @@ table.items tr:hover td { background: var(--hover); }
 
 /* What kind of thing this is, in one fixed-width chip so the titles line up. */
 .mat-kind {
-  flex: none; width: 92px; margin-top: 1px; text-align: center;
+  flex: none; width: var(--mat-kind-w); margin-top: 1px; text-align: center;
   font-size: 10px; text-transform: uppercase; letter-spacing: .03em; font-weight: 650;
   color: var(--ink-3); background: var(--paper);
   border: 1px solid var(--rule); border-radius: 0; padding: 2px 5px;
@@ -1543,7 +1629,7 @@ table.items tr:hover td { background: var(--hover); }
    because its rows are a fixed shape; the month takes the rest. */
 .board {
   display: grid; gap: 20px; align-items: start;
-  grid-template-columns: minmax(0, 1fr) 352px;
+  grid-template-columns: minmax(0, 1fr) 376px;
 }
 .rail { min-width: 0; max-height: 648px; display: flex; flex-direction: column; }
 .rail-list { flex: 1; min-height: 0; overflow-y: auto; }
@@ -1559,11 +1645,13 @@ table.items tr:hover td { background: var(--hover); }
 
 /* ------------------------------------------------- the dashboard, unscrolled
 
-   Only where there is genuinely room for it: narrower than this the month and
-   the rail stack, and shorter than this the month would be squeezed past
-   reading. Outside that window the dashboard scrolls like everything else,
-   which is the behaviour every other screen keeps at all sizes. */
-@media (min-width: 1081px) and (min-height: 780px) {
+   Only where there is genuinely room for it: narrower than this the band's
+   figures take a row of their own and the month's own controls wrap, which
+   together leave the month less height than it can be read at; shorter than
+   this it is squeezed past reading anyway. Outside that window the dashboard
+   scrolls like everything else, which is the behaviour every other screen keeps
+   at all sizes. */
+@media (min-width: 1201px) and (min-height: 780px) {
   .app.fit { height: 100vh; overflow: hidden; }
   .app.fit .main {
     height: 100vh; overflow: hidden;
@@ -1714,6 +1802,10 @@ table.items tr:hover td { background: var(--hover); }
 
   /* A panel's controls wrap under its title rather than crowding it. */
   .panel-head > .spacer { flex: 1 1 100%; height: 0; }
+  /* Except in a drawer, where a section head is a rule and a word and there is
+     room for the one control beside them — given a line of its own it reads as
+     a button belonging to whatever comes next. */
+  .drawer .panel-head > .spacer { flex: 1 1 auto; height: auto; }
 
   /* The month's controls keep its line; the count drops under the name. */
   .cal .sheet-head { flex-wrap: wrap; align-items: center; row-gap: 4px; }
@@ -1734,6 +1826,7 @@ table.items tr:hover td { background: var(--hover); }
      gets the full width underneath. */
   .mat-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; }
   .mat-kind { justify-self: start; width: auto; padding: 2px 7px; margin: 0; }
+  .mat-folder-head > .caret { width: 10px; }
   .mat-actions { grid-column: 2; grid-row: 1; flex-direction: row; align-items: center; gap: 10px; }
   .mat-id { grid-column: 1 / -1; }
 
@@ -1743,14 +1836,6 @@ table.items tr:hover td { background: var(--hover); }
   .catrow .w:not(.score) { width: auto; text-align: left; }
   .catrow .bar { flex: 1 1 auto; width: auto; }
 
-  /* A settings course is a row to tap, not a card with an empty footer. */
-  .set-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; }
-  .set-card > :not(.ccard-foot) { grid-column: 1; }
-  .set-card .ccard-foot {
-    grid-column: 2; grid-row: 1 / span 2; align-self: center;
-    margin: 0; padding: 0; border: 0; min-height: 0;
-  }
-
   /* The palette opens under the status bar, above where the keyboard will be. */
   .spot {
     top: calc(var(--safe-t) + 10px); width: calc(100vw - 24px);
@@ -1758,14 +1843,21 @@ table.items tr:hover td { background: var(--hover); }
   }
 }
 
-@media (max-width: 760px) {
-  /* The figures drop under the countdown and share the band's width. */
+/* The figures drop under the countdown and share the band's width.
+   The three of them are 400px that cannot shrink, so beside them the headline
+   deadline — the thing the dashboard is built around — ran out of room for its
+   own name long before the screen was anything like small. It gets the band's
+   full width from here down, and the figures a row of their own. */
+@media (max-width: 1200px) {
   .band { flex-wrap: wrap; }
   .band-hero { flex: 1 1 100%; }
   .band-stats { flex: 1 1 100%; border-top: 1px solid var(--on-ink-rule); }
   .stat { flex: 1 1 0; min-width: 0; }
   .stat:first-child { border-left: 0; }
   .stat-note { max-width: none; }
+}
+
+@media (max-width: 760px) {
   .set-item-body { grid-template-columns: minmax(0, 1fr); }
   .facts > div { flex-direction: column; gap: 2px; }
   .facts dt { width: auto; }
@@ -1775,7 +1867,7 @@ table.items tr:hover td { background: var(--hover); }
 @media (max-width: 720px) {
   .cal-grid { grid-auto-rows: minmax(80px, auto); }
   .cal-cell { padding: 5px 5px 6px; }
-  .mat-kind { width: 74px; letter-spacing: 0; }
+  .mat-kind { letter-spacing: 0; }
   .mat-folder-head, .mat-tree > .mat-item { padding-inline: 14px; }
   .mat-folder-body { padding: 0 14px 8px; }
   .mat-folder .mat-folder > .mat-folder-body { padding-left: 20px; }
