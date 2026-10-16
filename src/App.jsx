@@ -15,6 +15,8 @@ import Sidebar, { TabBar } from "./components/Sidebar.jsx";
 import Spotlight from "./components/Spotlight.jsx";
 import StatRow from "./components/StatRow.jsx";
 import Welcome from "./components/Welcome.jsx";
+import WhatsNew from "./components/WhatsNew.jsx";
+import * as whatsnew from "./browser/whatsnew.js";
 import * as claudeLink from "./browser/claude.js";
 import { courseOrder } from "./lib/format.js";
 import { parseICS } from "./lib/ics.js";
@@ -49,6 +51,7 @@ export default function App() {
   }, []);
   // Shown once per browser, the first time there is ever anything to show.
   const [welcome, setWelcome] = useState(false);
+  const [news, setNews] = useState(false);
   // Announcements that have never been shown, held for one modal. The set is
   // what stops a background reload popping the same post up twice while the
   // server is still being told about the first time.
@@ -188,8 +191,18 @@ export default function App() {
   // away again, which is exactly what makes the tour return on a clean slate.
   useEffect(() => {
     if (!data || api.welcomed()) return;
+    whatsnew.mark();
     setWelcome(true);
   }, [data]);
+
+  // People who were here before the Claude tab get told about it once. It waits
+  // behind the welcome and the drawer like every other modal, and stays quiet
+  // where the tab cannot exist or is already on.
+  useEffect(() => {
+    if (!data || drawer || adding || popup || welcome) return;
+    if (!claudeLink.supported || claudeOn || whatsnew.seen()) return;
+    setNews(true);
+  }, [data, drawer, adding, popup, welcome, claudeOn]);
 
   // Something posted while you were away is worth a modal once. It waits behind
   // an open drawer or the welcome rather than stacking on top — two overlays
@@ -543,6 +556,18 @@ export default function App() {
         <Welcome
           courses={data.courses}
           onClose={() => { api.markWelcomed(); setWelcome(false); }}
+        />
+      )}
+
+      {news && (
+        <WhatsNew
+          onClose={() => { whatsnew.mark(); setNews(false); }}
+          onSetUp={() => {
+            whatsnew.mark();
+            setNews(false);
+            toggleClaude(true);
+            go(href.claude);
+          }}
         />
       )}
 
