@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
+import * as claudeLink from "../browser/claude.js";
 import { available as googleAvailable } from "../browser/google.js";
 import FileIndexer from "./FileIndexer.jsx";
 import { THEMES } from "../lib/theme.js";
 import { dateTime, filesize, points } from "../lib/format.js";
+import { href } from "../lib/route.js";
 
 const THEME_LABELS = { light: "Light", dark: "Dark" };
 
@@ -91,6 +93,38 @@ function GoogleDrive() {
 }
 
 /**
+ * The Claude tab: off until asked for.
+ *
+ * It starts the Claude Code already on this computer, which is the student's own
+ * install and subscription, so the page says what that means rather than assuming
+ * it. The choice is this browser's, like the theme.
+ */
+function ClaudeAssistant({ on, onChange }) {
+  if (!claudeLink.supported) return null;
+  return (
+    <section className="panel" id="claude">
+      <div className="panel-head">
+        <h2>Claude assistant</h2>
+        <span className="note dim">saved in this browser</span>
+      </div>
+      <p className="note set-note">
+        Adds a Claude tab for asking questions about your courses and having Claude write study
+        guides and practice quizzes.
+      </p>
+      <div className="seg">
+        <button className={on ? "" : "on"} onClick={() => onChange(false)}>Off</button>
+        <button className={on ? "on" : ""} onClick={() => onChange(true)}>On</button>
+      </div>
+      {on && (
+        <p className="note foot-note">
+          Open the <a href={href.claude}>Claude tab</a> for setup if it is not connected yet.
+        </p>
+      )}
+    </section>
+  );
+}
+
+/**
  * What search can see inside.
  *
  * A file is findable by name as soon as its course has been read. What it
@@ -107,7 +141,7 @@ function Documents({ courses }) {
         <span className="note dim">read once, kept as words</span>
       </div>
       <p className="note">
-        Reading every Word document, slide deck and text file in every course
+        Reading every Word document, slide deck, PDF and text file in every course
         makes their contents searchable, not just their names.
       </p>
       <FileIndexer courses={courses} clearable />
@@ -434,7 +468,7 @@ function CourseSettings({ course, data, onReload, onBack }) {
 
 export default function Settings({ data, courseId, theme, onTheme, onReload,
                                    onBack, onOpenCourse, me, onLogout, loggingOut,
-                                   demo = false }) {
+                                   demo = false, claudeOn = false, onClaude = () => {} }) {
   const course = courseId
     ? data.courses.find((c) => c.course_id === courseId)
     : null;
@@ -467,6 +501,8 @@ export default function Settings({ data, courseId, theme, onTheme, onReload,
       <Appearance theme={theme} onTheme={onTheme} />
 
       <GoogleDrive />
+
+      <ClaudeAssistant on={claudeOn} onChange={onClaude} />
 
       <Documents courses={data.courses} />
 
@@ -537,6 +573,7 @@ function StoredData({ onReload }) {
     setBusy(true); setErr(null);
     try {
       const result = await api.resetData();
+      claudeLink.reset();
       setDone(result);
       setArmed(false);
       // The cache is empty now, so this reload is a full re-sync rather than a

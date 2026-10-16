@@ -36,7 +36,19 @@ function storedSpeed() {
   }
 }
 
-export default function DocumentViewer({ file, onClose }) {
+/** Shrinks a Word page that is wider than the pane it sits in. A page is a fixed
+ * 8.5in, which a half-width pane cannot hold, and cropping it hides the left of
+ * every line — so it is scaled to fit rather than scrolled sideways. */
+function fitPage(body, container) {
+  if (!body || !container) return;
+  container.style.zoom = "";
+  const page = container.querySelector("section.docx");
+  if (!page || !page.offsetWidth) return;
+  const scale = Math.min(1, (body.clientWidth - 32) / page.offsetWidth);
+  if (scale < 1) container.style.zoom = String(scale);
+}
+
+export default function DocumentViewer({ file, onClose, inline = false, actions = null }) {
   const kind = kindOf(file.filename);
   // In the iPhone app these are shown by iOS, over this reader, which closes with it.
   const native = previewsNatively(kind);
@@ -48,6 +60,7 @@ export default function DocumentViewer({ file, onClose }) {
   const [sendError, setSendError] = useState(null);
   const [text, setText] = useState(null);
   const docxRef = useRef(null);
+  const bodyRef = useRef(null);
   const pptxRef = useRef(null);
   // The live previewer, kept so the arrow keys can drive the deck it drew.
   const deckRef = useRef(null);
@@ -64,12 +77,15 @@ export default function DocumentViewer({ file, onClose }) {
   // Escape belongs to whatever is on top, which is not necessarily this: the
   // search palette opens over the document being read.
   const isTop = useTopmost(LAYER.reader);
+  // Set beside something else rather than over it (the Claude tab), the reader is
+  // not modal: it takes no focus, and Escape is not its to answer.
   useEffect(() => {
+    if (inline) return undefined;
     closeRef.current?.focus();
     const onKey = (e) => e.key === "Escape" && isTop && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, isTop]);
+  }, [onClose, isTop, inline]);
 
   // A streamed file has no bytes in the page at all. Its URL is one this app
   // serves and the service worker answers, so it is minted once and given back
@@ -140,12 +156,21 @@ export default function DocumentViewer({ file, onClose }) {
         ignoreLastRenderedPageBreak: true, useBase64URL: true,
       });
       rememberFileText(file.origin, file.filename, docxRef.current?.innerText);
+      if (inline) fitPage(bodyRef.current, docxRef.current);
     })()
       .catch((e) => live && setError(e.message))
       .finally(() => live && setStatus("ready"));
 
     return () => { live = false; };
-  }, [native, kind, source, file.origin, file.filename]);
+  }, [native, kind, source, file.origin, file.filename, inline]);
+
+  // Beside the chat the pane changes width with the window, so the page follows it.
+  useEffect(() => {
+    if (!inline || kind !== "docx" || !bodyRef.current) return undefined;
+    const watch = new ResizeObserver(() => fitPage(bodyRef.current, docxRef.current));
+    watch.observe(bodyRef.current);
+    return () => watch.disconnect();
+  }, [inline, kind]);
 
   /**
    * A deck, drawn as it was designed.
@@ -255,7 +280,11 @@ export default function DocumentViewer({ file, onClose }) {
     if (native) return null;
     switch (kind) {
       case "pdf":
-        return <iframe className="viewer-frame" src={source} title={file.filename} />;
+        // `file.page` is where to open: the browser's own PDF reader takes it as a fragment.
+        // Keyed by it, so a different page of the same file is a fresh frame, not a scroll
+        // the reader may ignore.
+        return <iframe key={file.page ?? 0} className="viewer-frame" title={file.filename}
+                       src={file.page ? `${source}#page=${file.page}` : source} />;
       case "image":
         return <img className="viewer-image" src={source} alt={file.filename} />;
       case "video":
@@ -291,8 +320,9 @@ export default function DocumentViewer({ file, onClose }) {
 
   return (
     <>
-      <div className="scrim over" onClick={onClose} />
-      <div className="viewer" role="dialog" aria-modal="true" aria-label={file.filename}>
+      {!inline && <div className="scrim over" onClick={onClose} />}
+      <div className={inline ? "viewer inline" : "viewer"} role={inline ? "region" : "dialog"}
+           aria-modal={inline ? undefined : "true"} aria-label={file.filename}>
         <div className="viewer-head">
           <span className="fileext" aria-hidden="true">{extension(file.filename)}</span>
           <div className="viewer-id">
@@ -300,6 +330,7 @@ export default function DocumentViewer({ file, onClose }) {
             <span className="note dim">
               {size}
               {kind === "docx" || kind === "pptx" ? " · read in the browser" : ""}
+              {kind === "pdf" && file.page ? ` · opened at page ${file.page}` : ""}
             </span>
           </div>
           <div className="spacer" />
@@ -320,11 +351,12 @@ export default function DocumentViewer({ file, onClose }) {
           {file.url && (
             <a className="btn" href={file.url} download={file.filename}>Download</a>
           )}
+          {actions}
           <button ref={closeRef} onClick={onClose}>Close</button>
           {sendError && <p className="err">{sendError}</p>}
         </div>
 
-        <div className={`viewer-body kind-${error ? "none" : kind}`}>
+        <div ref={bodyRef} className={`viewer-body kind-${error ? "none" : kind}`}>
           {body()}
           {busy && (
             <p className="viewer-busy">

@@ -3,6 +3,7 @@ import { api } from "./api.js";
 import Announcements from "./components/Announcements.jsx";
 import ExtensionLogin from "./components/ExtensionLogin.jsx";
 import AssignmentDrawer from "./components/AssignmentDrawer.jsx";
+import Claude from "./components/Claude.jsx";
 import Calendar from "./components/Calendar.jsx";
 import CoursePage, { TABS } from "./components/CoursePage.jsx";
 import DueList from "./components/DueList.jsx";
@@ -14,6 +15,7 @@ import Sidebar, { TabBar } from "./components/Sidebar.jsx";
 import Spotlight from "./components/Spotlight.jsx";
 import StatRow from "./components/StatRow.jsx";
 import Welcome from "./components/Welcome.jsx";
+import * as claudeLink from "./browser/claude.js";
 import { courseOrder } from "./lib/format.js";
 import { parseICS } from "./lib/ics.js";
 import { countUnread, markRead, readAt as storedReadAt } from "./lib/read.js";
@@ -39,6 +41,12 @@ export default function App() {
   // of which may be absent.
   const [adding, setAdding] = useState(null);
   const [spotlight, setSpotlight] = useState(false);
+  // The Claude tab is opt-in and per browser, like the theme.
+  const [claudeOn, setClaudeOn] = useState(() => claudeLink.supported && claudeLink.enabled());
+  const toggleClaude = useCallback((on) => {
+    claudeLink.setEnabled(on);
+    setClaudeOn(on);
+  }, []);
   // Shown once per browser, the first time there is ever anything to show.
   const [welcome, setWelcome] = useState(false);
   // Announcements that have never been shown, held for one modal. The set is
@@ -222,6 +230,7 @@ export default function App() {
     setLoggingOut(true);
     try {
       const nextAuth = await api.logout();
+      claudeLink.reset();
       setAuth(nextAuth);
       setData(null);
       setEvents([]);
@@ -313,6 +322,8 @@ export default function App() {
         return ["Grades"];
       case "announcements":
         return ["Announcements"];
+      case "claude":
+        return ["Claude"];
       case "settings":
         return route.id
           ? [courseLabel(route.id) ?? "Course", "Settings"]
@@ -364,7 +375,8 @@ export default function App() {
   // the viewport and the month grid takes whatever height is left. Every other
   // screen is reference material of unbounded length and scrolls normally.
   return (
-    <div className={"app" + (route.name === "overview" ? " fit" : "")}>
+    <div className={"app" + (route.name === "overview" ? " fit" : "") +
+                    (route.name === "claude" && claudeOn ? " pinned" : "")}>
       <Sidebar
         me={data.me}
         courses={data.courses}
@@ -375,8 +387,9 @@ export default function App() {
         loggingOut={loggingOut}
         onSearch={() => setSpotlight(true)}
         demo={api.demo}
+        claudeOn={claudeOn}
       />
-      <TabBar route={route} counts={counts} />
+      <TabBar route={route} counts={counts} claudeOn={claudeOn} />
 
       <main className="main">
         {route.name === "settings" ? (
@@ -395,7 +408,13 @@ export default function App() {
             onLogout={logout}
             loggingOut={loggingOut}
             demo={api.demo}
+            claudeOn={claudeOn}
+            onClaude={toggleClaude}
           />
+        ) : route.name === "claude" ? (
+          claudeOn ? <Claude courses={data.courses} name={name} /> : (
+            <p className="empty">Claude is off. Turn it on in <a href={href.settings}>Settings</a>.</p>
+          )
         ) : route.name === "course" ? (
           <CoursePage
             course={data.courses.find((c) => c.course_id === route.id)}

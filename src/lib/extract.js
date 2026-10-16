@@ -7,10 +7,10 @@
  * read directly: Word and PowerPoint are zip archives of XML, and a text file is
  * already the text.
  *
- * It deliberately does not cover PDF. Nothing in the page can read one — the
- * viewer hands a PDF to the browser's own plugin — and pulling in a PDF engine
- * to index one is a dependency this app does not have. A PDF is still found by
- * its name, which is how most of them are remembered anyway.
+ * A PDF is read with pdf.js, which draws nothing here: it is asked only for the
+ * text layer. It is loaded on the first PDF, like jszip, so it stays out of the
+ * main bundle. A PDF that is only a scan has no text layer to ask for and comes
+ * back empty — reading those would be OCR, which this is not.
  *
  * jszip is loaded only when there is an archive to open, so it stays out of the
  * main bundle like the renderers do.
@@ -19,7 +19,7 @@
 import { kindOf } from "./viewer.js";
 
 // What can actually be read here. Everything else is indexed by name alone.
-export const READABLE = ["text", "docx", "pptx"];
+export const READABLE = ["text", "docx", "pptx", "pdf"];
 
 export const indexable = (filename) => READABLE.includes(kindOf(filename));
 
@@ -67,6 +67,106 @@ async function pptxText(buffer) {
   return out.join("\n");
 }
 
+// A PDF of a whole textbook is not worth the time it takes; what is read is the first
+// part, and the reader can still open the rest.
+const MAX_PDF_PAGES = 300;
+
+/** Between pages of a PDF's text. A form feed is what plain text uses for a page
+ * break, and it collapses to a space wherever whitespace is collapsed. */
+export const PAGE_BREAK = "\f";
+
+/** Whitespace collapsed inside each page, with the page breaks kept — so a stored
+ * extract still knows where one page ends and the next begins. Blank pages stay: the
+ * number of a page is its place in the file, and dropping one would shift the rest. */
+export function squashPages(text) {
+  return String(text ?? "").split(PAGE_BREAK).map((p) => p.replace(/\s+/g, " ").trim()).join(PAGE_BREAK);
+}
+
+/** The words of a PDF with each page headed `[page N]`, so what is read can be placed. */
+export function markPages(words) {
+  return String(words ?? "").split(PAGE_BREAK).map((p, i) => `[page ${i + 1}]\n${p}`).join("\n\n");
+}
+
+/** Which pages `[from, end)` of marked text covers, as `[first, last]`. */
+export function pagesCovered(marked, from, end) {
+  const marks = [...marked.matchAll(/\[page (\d+)\]/g)];
+  const at = (pos) => {
+    let page = 1;
+    for (const m of marks) {
+      if (m.index <= pos) page = Number(m[1]);
+      else break;
+    }
+    return page;
+  };
+  return [at(from), at(Math.max(from, end - 1))];
+}
+
+/** The page of a PDF's words that holds the most of the terms — the first such page
+ * when several tie; null for text that has no pages, or terms that are nowhere. One
+ * stray word ("week") on an early page must not beat the page that has the rest. */
+export function pageWith(words, queryTerms) {
+  const pages = String(words ?? "").split(PAGE_BREAK);
+  if (pages.length < 2 || !queryTerms?.length) return null;
+  const counts = pages.map((p) => {
+    const lower = p.toLowerCase();
+    return queryTerms.filter((t) => lower.includes(t)).length;
+  });
+  const best = Math.max(...counts);
+  return best > 0 ? counts.indexOf(best) + 1 : null;
+}
+
+/** "3", "2-4", "2–4, 9" → the page numbers asked for, in order, within `max`. */
+export function parsePages(spec, max = Infinity) {
+  const out = new Set();
+  for (const part of String(spec ?? "").split(/[,;]/)) {
+    const m = part.trim().match(/^(\d+)\s*(?:[-–]\s*(\d+))?$/);
+    if (!m) continue;
+    const a = Number(m[1]);
+    const b = m[2] ? Number(m[2]) : a;
+    for (let n = Math.min(a, b); n <= Math.min(Math.max(a, b), max) && out.size < 200; n++) {
+      if (n >= 1) out.add(n);
+    }
+  }
+  return [...out];
+}
+
+// The legacy build, not the default one: the default assumes Promise.try and its
+// kin, which Node 22 (what CI runs) and older Safari — the iPhone app's web view —
+// do not have. The legacy build brings its own.
+//
+// The worker is a file the bundler serves, so it is named by URL — in the browser.
+// Node (the tests) finds the worker beside the library on its own.
+async function loadPdfjs() {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
+    pdfjs.GlobalWorkerOptions.workerSrc =
+      (await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url")).default;
+  }
+  return pdfjs;
+}
+
+async function pdfText(buffer) {
+  const pdfjs = await loadPdfjs();
+  const task = pdfjs.getDocument({
+    data: new Uint8Array(buffer), isEvalSupported: false, useSystemFonts: true,
+  });
+  try {
+    const doc = await task.promise;
+    const pages = [];
+    for (let n = 1; n <= Math.min(doc.numPages, MAX_PDF_PAGES); n++) {
+      const page = await doc.getPage(n);
+      const content = await page.getTextContent();
+      // A line is what pdf.js marks as ending one; runs inside it are joined by a space.
+      pages.push(content.items.map((i) => i.str + (i.hasEOL ? "\n" : " ")).join("")
+        .replace(/[ \t]+\n/g, "\n").trim());
+      page.cleanup();
+    }
+    return pages.join(PAGE_BREAK);
+  } finally {
+    await task.destroy();
+  }
+}
+
 /** What this file says, or "" for one that cannot be read here. */
 export async function extractText(filename, blob) {
   switch (kindOf(filename)) {
@@ -76,6 +176,8 @@ export async function extractText(filename, blob) {
       return docxText(await blob.arrayBuffer());
     case "pptx":
       return pptxText(await blob.arrayBuffer());
+    case "pdf":
+      return pdfText(await blob.arrayBuffer());
     default:
       return "";
   }

@@ -11,7 +11,7 @@
 // Nothing here fetches a file. What a handout *says* is only searchable once it
 // has been opened and read in the page, which is what rememberFileText records.
 
-import { extractText, indexable } from "../lib/extract.js";
+import { extractText, indexable, squashPages } from "../lib/extract.js";
 import * as store from "./store.js";
 import { cachedContent, courseContent, fetchBytes, fileSources } from "./sync.js";
 
@@ -31,8 +31,9 @@ const textKey = (courseId, contentId, filename) =>
  * and attributing one's text to the other's hit is worse than having no snippet.
  */
 export async function rememberFileText(origin, filename, text) {
-  const body = String(text ?? "").replace(/\s+/g, " ").trim();
-  if (!origin?.courseId || !origin?.contentId || !filename || !body) return;
+  // A PDF's page breaks survive, so a hit can be placed on its page.
+  const body = squashPages(text);
+  if (!origin?.courseId || !origin?.contentId || !filename || !body.replace(/[\f\s]/g, "")) return;
   try {
     await store.write(textKey(origin.courseId, origin.contentId, filename),
                       body.slice(0, MAX_TEXT));
@@ -260,6 +261,29 @@ export async function indexStatus(courses = []) {
     }
   }
   return { readable, indexed, unread };
+}
+
+/** The readable files whose words have not been read yet, and the courses never
+ * walked at all (whose files are not even known). Counted from what is held, like
+ * `indexStatus`, so asking costs no requests. */
+export async function pending(courses = []) {
+  const held = new Set((await store.keys())
+    .filter((k) => typeof k === "string" && k.startsWith("filetext_")));
+  const files = [];
+  const unwalked = [];
+  for (const course of courses) {
+    const tree = await cachedContent(course.course_id);
+    if (!tree) {
+      unwalked.push(course);
+      continue;
+    }
+    for (const t of targets(tree.nodes)) {
+      if (!held.has(textKey(course.course_id, t.contentId, t.filename))) {
+        files.push({ course: course.label, courseId: course.course_id, ...t });
+      }
+    }
+  }
+  return { files, unwalked };
 }
 
 /**

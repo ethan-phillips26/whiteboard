@@ -124,6 +124,7 @@ export function scoreRecord(record, queryTerms) {
 export function snippet(record, hits, width = 120) {
   const inBody = hits?.find((h) => h.field === "body" || h.field === "text");
   if (!inBody) return "";
+  // \s takes in a PDF's page break (a form feed), so it reads as a space here.
   const text = String(inBody.text ?? "").replace(/\s+/g, " ").trim();
   if (text.length <= width) return text;
   const start = Math.max(0, inBody.at - Math.floor(width / 3));

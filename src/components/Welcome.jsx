@@ -84,7 +84,7 @@ export default function Welcome({ courses, onClose }) {
             <p className="note">
               Search finds a file by its name straight away. To search what is
               <em> inside</em> your handouts, they have to be read first — every
-              Word document, slide deck and text file in every course, fetched
+              Word document, slide deck, PDF and text file in every course, fetched
               once and kept only as words. It takes a few minutes and you can
               stop it at any point.
             </p>

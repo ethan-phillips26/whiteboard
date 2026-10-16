@@ -364,12 +364,18 @@ async function signIn() {
   return { ok: true };
 }
 
-async function handle(msg, sender) {
+// Whether a page or script may use this extension at all: its own pages, and the
+// dashboard by origin *and* path.
+function allowed(sender) {
   // `sender.origin` is Chrome's; the url is there in every browser.
   const from = sender.origin || (sender.url ? new URL(sender.url).origin : "");
   const path = sender.url ? new URL(sender.url).pathname : "";
-  const own = from === self.location.origin;
-  if (!own && !PAGES.some((p) => p.origin === from && path.startsWith(p.path))) {
+  return from === self.location.origin
+    || PAGES.some((p) => p.origin === from && path.startsWith(p.path));
+}
+
+async function handle(msg, sender) {
+  if (!allowed(sender)) {
     return { error: "refused", message: "This page is not allowed to use the extension." };
   }
   switch (msg?.type) {
@@ -381,6 +387,9 @@ async function handle(msg, sender) {
     case "file": return fileGet(String(msg.path || ""));
     case "range": return rangeGet(String(msg.path || ""), msg.start, msg.end);
     case "host": return { host: await currentHost() };
+    // What the Claude tab's install instructions need to name: the id a Chrome-family
+    // browser gives this copy, which the native host's manifest must list.
+    case "claude-info": return { id: chrome.runtime.id, firefox: typeof browser !== "undefined" };
     case "disconnect": return disconnect();
     default: return { error: "unknown", message: `No such request: ${msg?.type}` };
   }
@@ -389,6 +398,40 @@ async function handle(msg, sender) {
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   handle(msg, sender).then(reply, (e) => reply({ error: "exception", message: String(e?.message || e) }));
   return true; // the reply is asynchronous
+});
+
+// The Claude tab's line to the `claude` on this computer. The page cannot start a
+// program, so it asks here, and this relays frames both ways to the native host the
+// person installed — nothing else. What the host runs is its own business: it never
+// touches Blackboard, which still only ever answers `get`, `file` and `range` above.
+const NATIVE_HOST = "dev.ethanphillips.whiteboard_claude";
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "claude") return;
+  if (!allowed(port.sender)) {
+    port.disconnect();
+    return;
+  }
+  let host;
+  try {
+    host = chrome.runtime.connectNative(NATIVE_HOST);
+  } catch (e) {
+    port.postMessage({ t: "gone", message: String(e?.message || e) });
+    port.disconnect();
+    return;
+  }
+  host.onMessage.addListener((m) => port.postMessage(m));
+  host.onDisconnect.addListener(() => {
+    // Read, so the browser does not log it as unchecked: "host not found" is the
+    // ordinary answer from a computer that has not installed the host.
+    const message = chrome.runtime.lastError?.message ?? null;
+    try {
+      port.postMessage({ t: "gone", message });
+      port.disconnect();
+    } catch { /* the page went first */ }
+  });
+  port.onMessage.addListener((m) => host.postMessage(m));
+  port.onDisconnect.addListener(() => host.disconnect());
 });
 
 chrome.action.onClicked.addListener(() => {

@@ -14,6 +14,7 @@ export function parse(hash) {
   switch (head) {
     case "grades":
     case "announcements":
+    case "claude":
       return { name: head, id: null, tab: null };
     // A course without an id is not a screen; fall through to the dashboard.
     // The segment after the id is which of its tabs to open, so a bookmark
@@ -48,6 +49,7 @@ export const href = {
   overview: HOME,
   grades: "#/grades",
   announcements: "#/announcements",
+  claude: "#/claude",
   settings: "#/settings",
   course: (id, tab) =>
     `#/course/${encodeURIComponent(id)}${tab ? `/${tab}` : ""}`,

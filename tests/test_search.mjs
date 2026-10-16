@@ -9,7 +9,8 @@ import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { extractText, indexable } from "../src/lib/extract.js";
+import { extractText, indexable, markPages, pageWith, pagesCovered, parsePages, squashPages }
+  from "../src/lib/extract.js";
 import { matchTerm, rank, scoreRecord, snippet, terms }
   from "../src/lib/rank.js";
 
@@ -248,10 +249,56 @@ check("slide 10 comes after slide 2, not after slide 1",
 check("runs on one slide are kept apart",
       deck.includes("Hashing collisions"), deck);
 
+console.log("\n[search] PDFs");
+const pdfBody = "BT /F1 18 Tf 20 100 Td (Hello hashing) Tj 0 -30 Td (second line) Tj ET";
+const pdfFile = `%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R 6 0 R]/Count 2>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
+4 0 obj<</Length ${pdfBody.length}>>stream
+${pdfBody}
+endstream endobj
+5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
+6 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]/Contents 7 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
+7 0 obj<</Length 44>>stream
+BT /F1 18 Tf 20 100 Td (Page two text) Tj ET
+endstream endobj
+trailer<</Root 1 0 R/Size 8>>
+%%EOF`;
+const pdfWords = await extractText("reading.pdf", new Blob([pdfFile]));
+check("a PDF is offered to the extractor", indexable("reading.pdf") === true);
+check("its text is read, line by line", pdfWords.includes("Hello hashing\nsecond line"), JSON.stringify(pdfWords));
+check("pages are kept apart by a page break", pdfWords.split("\f").length === 2 && pdfWords.split("\f")[1] === "Page two text",
+      JSON.stringify(pdfWords));
+check("a file that is not a PDF is refused, not read as empty",
+      await extractText("reading.pdf", new Blob(["%PDF-1.7"])).then(() => false, () => true));
+
+console.log("\n[search] where on a PDF");
+check("whitespace collapses inside a page but the page breaks stay",
+      squashPages("a  b\n c\f\f d \t e") === "a b c\f\fd e", JSON.stringify(squashPages("a  b\n c\f\f d \t e")));
+check("a blank page keeps its place", squashPages("one\f\fthree").split("\f")[2] === "three");
+const marked = markPages("alpha\fbeta\fgamma");
+check("each page is headed with its number", marked === "[page 1]\nalpha\n\n[page 2]\nbeta\n\n[page 3]\ngamma", JSON.stringify(marked));
+check("the pages a stretch of text covers",
+      JSON.stringify(pagesCovered(marked, 0, marked.length)) === "[1,3]"
+      && JSON.stringify(pagesCovered(marked, marked.indexOf("beta"), marked.indexOf("beta") + 4)) === "[2,2]");
+check("a stretch that starts mid-page is on that page",
+      pagesCovered(marked, marked.indexOf("lpha"), marked.indexOf("gamma"))[0] === 1);
+const book = "intro words\fhash tables and buckets\fchaining uses a linked list in each bucket\fhash chaining summary";
+check("a hit is placed on the first page where every term appears",
+      pageWith(book, ["hash", "chaining"]) === 4 && pageWith(book, ["chaining"]) === 3);
+check("with no page holding every term, the page holding the most", pageWith(book, ["buckets", "zzz"]) === 2);
+check("one stray word on an early page does not beat the page with the rest",
+      pageWith("week one intro\fnothing here\fthe load factor of a table\fsummary", ["week", "load", "factor", "table"]) === 3);
+check("a tie goes to the first page", pageWith("hash here\fhash there", ["hash"]) === 1);
+check("text without pages has no page", pageWith("one long page about hash", ["hash"]) === null);
+check("a term that is nowhere has no page", pageWith(book, ["zzz"]) === null);
+check("page specs", JSON.stringify(parsePages("3")) === "[3]" && JSON.stringify(parsePages("2-4")) === "[2,3,4]"
+      && JSON.stringify(parsePages("2–3, 9")) === "[2,3,9]");
+check("pages beyond the file are left out, nonsense gives none",
+      JSON.stringify(parsePages("8-12", 10)) === "[8,9,10]" && parsePages("x").length === 0 && parsePages("0").length === 0);
+
 console.log("\n[search] what cannot be read here");
-check("a PDF is not offered to the extractor", indexable("reading.pdf") === false);
-check("and reading one yields nothing rather than throwing",
-      (await extractText("reading.pdf", new Blob(["%PDF-1.7"]))) === "");
 check("a video is never read", indexable("lecture.mp4") === false);
 check("Word, PowerPoint and text are",
       indexable("a.docx") && indexable("b.pptx") && indexable("c.txt") &&

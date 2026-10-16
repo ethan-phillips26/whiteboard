@@ -3,7 +3,7 @@
   "name": "Whiteboard Connector",
   "version": "0.1.0",
   "description": "Lets the Whiteboard dashboard read your Blackboard courses with the session you already have. Read-only.",
-  "permissions": ["storage", "declarativeNetRequestWithHostAccess", "webRequest"],
+  "permissions": ["storage", "declarativeNetRequestWithHostAccess", "webRequest", "nativeMessaging"],
   "optional_host_permissions": [
     "https://*/*",
     "https://*.content.blackboardcdn.com/*"

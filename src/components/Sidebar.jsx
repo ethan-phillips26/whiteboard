@@ -9,12 +9,18 @@ const SECTIONS = [
   { name: "announcements", label: "Announcements", to: href.announcements, loud: true },
 ];
 
+// The Claude tab is opt-in (Settings), so it joins the sections only when switched on.
+const CLAUDE = { name: "claude", label: "Claude", to: href.claude };
+const sections = (claudeOn) =>
+  claudeOn ? [...SECTIONS.slice(0, 3), CLAUDE] : SECTIONS;
+
 // Drawn inline, stroked in currentColor, so they take the tab's colour in both
 // themes and there is no icon font or asset to ship for four shapes.
 const ICONS = {
   overview: <><rect x="3.5" y="5" width="17" height="15.5" rx="1.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></>,
   grades: <path d="M5.5 20v-8M12 20V5M18.5 20v-11" />,
   announcements: <path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.8 1.8H4.7zM10 21h4" />,
+  claude: <path d="M4.5 5.5h15v10.5H10l-4.5 3.5V16h-1zM8.5 10h7" />,
   settings: <path d="M4 7h9M17 7h3M15 4.8v4.4M4 17h3M11 17h9M9 14.8v4.4" />,
 };
 
@@ -34,10 +40,10 @@ function Icon({ name }) {
  * sections are what a thumb reaches for from anywhere — so they leave it for a bar
  * of their own. Hidden wherever there is a sidebar to hold them.
  */
-export function TabBar({ route, counts }) {
-  const tabs = [...SECTIONS, { name: "settings", label: "Settings", to: href.settings }];
+export function TabBar({ route, counts, claudeOn = false }) {
+  const tabs = [...sections(claudeOn), { name: "settings", label: "Settings", to: href.settings }];
   return (
-    <nav className="tabnav" aria-label="Sections">
+    <nav className="tabnav" aria-label="Sections" style={{ "--tabs": tabs.length }}>
       {tabs.map((s) => (
         <a
           key={s.name}
@@ -64,7 +70,8 @@ function fullName(me) {
 }
 
 export default function Sidebar({ me, courses, counts, route, order,
-                                  onLogout, loggingOut, onSearch, demo = false }) {
+                                  onLogout, loggingOut, onSearch, demo = false,
+                                  claudeOn = false }) {
   // Every course the sync kept. Courses whose gradebook the instructor hides
   // from students are dropped at the source, so there is nothing to filter here.
   const listed = courses;
@@ -91,7 +98,7 @@ export default function Sidebar({ me, courses, counts, route, order,
           `display: contents` keeps it out of the way of the column layout. */}
       <div className="nav-strip">
       <nav>
-        {SECTIONS.map((s) => (
+        {sections(claudeOn).map((s) => (
           <a
             key={s.name}
             href={s.to}

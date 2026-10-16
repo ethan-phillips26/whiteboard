@@ -8,6 +8,11 @@ using the session already in your browser, and passes them to the Whiteboard pag
 It only reads. It can't submit, post or change anything in Blackboard, and it only
 works with the Whiteboard page. Nothing is sent anywhere else.
 
+It also asks for browsers' "native messaging" permission. That is only used by
+Whiteboard's optional **Claude** tab, to start the Claude Code on your own computer
+through a helper you install separately (`claude-bridge/`); it does nothing until you
+turn that tab on and install the helper.
+
 ## Install
 
 The extension isn't in any store yet, so it's installed from this folder.
