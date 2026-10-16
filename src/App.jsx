@@ -475,7 +475,6 @@ export default function App() {
             <button className="spot-open" onClick={() => setSpotlight(true)}>
               ⌕ Search<kbd>Ctrl K</kbd>
             </button>
-            {/* Not in the iPhone app, where a web view has nowhere to save a file. */}
             <button className="export-ics"
                     onClick={() => api.exportCalendar().catch((e) => setError(e.message))}>
               Export .ics

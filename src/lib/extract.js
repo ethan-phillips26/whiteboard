@@ -131,7 +131,7 @@ export function parsePages(spec, max = Infinity) {
 }
 
 // The legacy build, not the default one: the default assumes Promise.try and its
-// kin, which Node 22 (what CI runs) and older Safari — the iPhone app's web view —
+// kin, which Node 22 (what CI runs) and older Safari
 // do not have. The legacy build brings its own.
 //
 // The worker is a file the bundler serves, so it is named by URL — in the browser.

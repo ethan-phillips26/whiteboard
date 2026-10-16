@@ -17,7 +17,7 @@ import { DEFINITIONS, run } from "./claudeTools.js";
 import { revive, titleFrom, transcript } from "../lib/chats.js";
 import * as chatStore from "./chats.js";
 import * as library from "./library.js";
-import { DEMO, NATIVE } from "./mode.js";
+import { DEMO } from "./mode.js";
 
 const PORT = "whiteboard:port";
 const PORT_EVENT = "whiteboard:port-event";
@@ -28,7 +28,7 @@ const GRADE_TIMEOUT = 190000;
 
 /** Whether this page could ever reach a host: it needs the extension, which neither
  * the phone app nor the demo has. */
-export const supported = !NATIVE && !DEMO;
+export const supported = !DEMO;
 
 // A choice about this screen, like the theme, so localStorage rather than the store
 // that logging out empties.

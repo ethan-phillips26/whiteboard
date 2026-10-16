@@ -454,8 +454,6 @@ textarea { line-height: 1.55; resize: vertical; }
   .spot-open kbd, .spot-foot, .cl-hint { display: none; }
 }
 
-/* Inside the iPhone app: nowhere to save a file to, and never a keyboard to name. */
-.native .export-ics, .native .spot-open kbd, .native .spot-foot { display: none; }
 .grid {
   display: grid; gap: 14px; align-items: start;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

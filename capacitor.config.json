@@ -1,8 +1,0 @@
-{
-  "appId": "dev.ethanphillips.whiteboard",
-  "appName": "Whiteboard",
-  "webDir": "dist",
-  "ios": {
-    "contentInset": "never"
-  }
-}
