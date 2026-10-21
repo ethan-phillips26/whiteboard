@@ -270,7 +270,7 @@ button.side-out:hover:not(:disabled) {
 a.link { color: var(--link); text-decoration: none; }
 a.link:hover { text-decoration: underline; }
 
-.main { min-width: 0; padding: 22px 26px 88px; max-width: 1560px; }
+.main { min-width: 0; padding: 22px 26px 88px; width: 100%; max-width: 1920px; margin-inline: auto; }
 
 /* Every screen opens with the same header block: title, one line of context,
    and whatever actions belong to that screen, pinned right. */
