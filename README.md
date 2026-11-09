@@ -4,9 +4,6 @@ A dashboard for Blackboard Learn: what's due, your grades in each course, announ
 course materials and a calendar you can export. It runs entirely in your browser and
 only reads from Blackboard. It never submits or changes anything.
 
-Unofficial, and not affiliated with Anthology Inc. Check your school's acceptable-use
-policy before relying on it.
-
 ## Use it
 
 Open <https://ethanphillips.dev/whiteboard/>. It needs the Whiteboard Connector
@@ -33,5 +30,3 @@ npm test
 The published extension only works with the live site. For local work, load a copy of
 `extension/` with `http://localhost/*` added to the content script's `matches` in
 `manifest.json` and to `PAGES` in `background.js`. Don't publish that copy.
-
-Pushing to `main` deploys the site to GitHub Pages (`.github/workflows/pages.yml`).
